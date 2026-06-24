@@ -1,0 +1,40 @@
+# For more details on the format and content:
+# https://github.com/robocorp/rcc/blob/master/docs/recipes.md#what-is-in-condayaml
+# Tip: Adding a link to the release notes of the packages helps maintenance and security.
+
+channels:
+  - conda-forge
+
+dependencies:
+  - python=3.11.13
+  - pip=25.1.1
+  - python-statemachine=2.5.0
+  - PyYAML=6.0.2
+  - pip:
+      # Core RoboCorp dependencies
+      - robocorp==3.0.0
+      - robocorp-workitems==1.4.7
+      - robocorp-truststore==0.9.1
+
+      # PDF processing and spreadsheet reading
+      - pypdf==6.0.0
+      - PyMuPDF==1.26.6
+      - openpyxl==3.1.2
+
+      # AI integration
+      - anthropic==0.61.0
+
+      # HTTP requests and authentication
+      - requests==2.32.5
+      - msal==1.33.0
+      - pyotp==2.9.0
+
+      # Selenium for UI automation
+      - selenium==4.15.2
+      - webdriver-manager==4.0.2
+
+      # Additional utilities
+      - python-dateutil==2.8.2
+      - pydantic-core
+      - cryptography==44.0.3
+      - rpaframework==31.0.0
