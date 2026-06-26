@@ -5,19 +5,51 @@ This module handles the complete workflow for navigating to and downloading
 Activity Statement reports from Xero Blue, including handling ATO lodge dialogs
 and statement period selection.
 
-Refactored to drive the page through the SeleniumBrowser wrapper
-(iaa_rpa_utils.browser.SeleniumBrowser) instead of the raw Selenium driver.
+Drives the page through the SeleniumBrowser wrapper
+(iaa_rpa_utils.browser.SeleniumBrowser) rather than the raw Selenium driver.
 All element interaction goes through the wrapper's locator-string API, e.g.
 "xpath://button[...]" / "id:submit" / "css:.foo". No direct driver access is
 needed.
+
+Inputs are modelled as dataclasses:
+    StatementPeriod          - a single BAS quarter-end period (month + calendar year)
+    ActivityStatementRequest - everything one download needs (period + file/output config)
+
+How to call:
+    from download_activity_statement import (
+        StatementPeriod,
+        ActivityStatementRequest,
+        download_activity_statement_report,
+    )
+
+    request = ActivityStatementRequest(
+        period=StatementPeriod("March", 2025),   # the period as it appears in Xero
+        download_directory=r"C:\\reports",
+        report_file_name="BAS_Q3_2025",
+        # window_title="Activity Statement",      # optional, has a default
+        # extension="xlsx",                        # optional, has a default
+    )
+    download_activity_statement_report(browser, request)
+
+Note on month + year:
+    `year` is the CALENDAR year shown beside the month in Xero, NOT a financial-year
+    label. September 2024 and December 2024 -> year=2024; March 2025 and June 2025 ->
+    year=2025. All four belong to financial year "2024/25", which is derived
+    automatically. Pass the year you see on screen next to the month.
+
+Failure behaviour:
+    Errors are logged and swallowed - the function returns None rather than raising.
+    To make failures propagate to the caller, change the `except` block in
+    `download_activity_statement_report` from `return` to `raise`.
 """
 
 from __future__ import annotations
 
 import os
-from datetime import datetime
+from dataclasses import dataclass
+from typing import Literal
 
-from iaa_rpa_utils import setup_logger
+from iaa_rpa_utils import ProcessLogger, setup_logger
 from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog
 
 
@@ -25,134 +57,135 @@ from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog
 logger = setup_logger(__name__)
 
 
-def download_activity_statement_report(
-    browser,
-    xero_statement_period: str,
-    xero_financial_year: str,
-    window_title: str,
-    xero_download_directory: str,
-    xero_report_file_name: str,
-    extension: str,
-):
-    """
-    Download Activity Statement report from Xero Blue.
+# The four BAS quarter-end months. Constrained so an invalid month is a
+# type-check error at the call site, before anything runs.
+Month = Literal["March", "June", "September", "December"]
 
-    This function orchestrates the complete process of downloading an Activity Statement
-    report from Xero Blue. It handles navigation through ATO lodge dialogs (if present),
-    selects the appropriate statement period and financial year, and exports the report
-    to the specified directory.
+
+@dataclass(frozen=True)
+class StatementPeriod:
+    """A BAS quarter-end statement period, e.g. September 2024.
+
+    `year` is the CALENDAR year shown next to the month in Xero's UI
+    (September 2024 -> year=2024; March 2025 -> year=2025) - NOT a
+    financial-year label. The FY range that contains the period is derived
+    from it via `fiscal_year_label`.
+    """
+
+    month: Month
+    year: int
+
+    def __post_init__(self) -> None:
+        if not 1000 <= self.year <= 9999:
+            raise ValueError(f"year must be a 4-digit calendar year, got {self.year}")
+
+    def __str__(self) -> str:
+        # Label Xero shows for the period itself, e.g. "September 2024".
+        return f"{self.month} {self.year}"
+
+    @property
+    def fiscal_year_label(self) -> str:
+        """FY range label that contains this period, e.g. "2024/25".
+
+        Sep/Dec sit in the financial year's start calendar year; Mar/Jun roll
+        into the following one. So both September 2024 and March 2025 belong to
+        the "2024/25" range.
+        """
+        start = self.year if self.month in ("September", "December") else self.year - 1
+        return f"{start}/{str(start + 1)[-2:]}"
+
+
+@dataclass(frozen=True, kw_only=True)
+class ActivityStatementRequest:
+    """Everything needed to download one Activity Statement report.
+
+    Holds configuration data only - the live browser/engine is passed
+    separately to the download function.
+    """
+
+    period: StatementPeriod
+    download_directory: str
+    report_file_name: str
+    window_title: str = "Activity Statement"
+    extension: str = "xlsx"
+
+    @property
+    def dest_path(self) -> str:
+        """Full save path, e.g. ".../BAS_Q1.xlsx". Tolerates an extension
+        passed with or without a leading dot."""
+        ext = self.extension.lstrip(".")
+        return os.path.join(self.download_directory, f"{self.report_file_name}.{ext}")
+
+    def summary_lines(self) -> list[str]:
+        """Human-readable "label : value" rows describing this request, with
+        the colons aligned. Used for the run's opening log block."""
+        rows = {
+            "Statement Period": self.period,
+            "Financial Year": self.period.fiscal_year_label,
+            "Download Directory": self.download_directory,
+            "Report File Name": self.report_file_name,
+            "Extension": self.extension,
+            "Window Title": self.window_title,
+        }
+        width = max(map(len, rows))
+        return [f"{label:<{width}} : {value}" for label, value in rows.items()]
+
+
+def download_activity_statement_report(browser, request: ActivityStatementRequest) -> None:
+    """
+    Download an Activity Statement report from Xero Blue.
+
+    Orchestrates the complete process: navigates through ATO lodge dialogs (if
+    present), selects the statement period and its financial year, and exports
+    the report to the requested directory.
 
     Args:
-        browser: SeleniumBrowser wrapper instance.
-        xero_statement_period (str): Statement period to select (e.g., "July 2024 - September 2024").
-        xero_financial_year (str): Financial year for the report (e.g., "2024-2025").
-        window_title (str): Window title of the download dialog.
-        xero_download_directory (str): Directory path where the report will be saved.
-        xero_report_file_name (str): Desired filename for the downloaded report.
-        extension (str): File extension for the downloaded report (e.g., ".xlsx").
+        browser: SeleniumBrowser wrapper instance (the live engine).
+        request (ActivityStatementRequest): All configuration for the download -
+            the period, output directory, filename, window title and extension.
 
     Returns:
         None
 
     Raises:
-        Exception: If any error occurs during the download process, logs the error and returns.
+        Nothing. Any error during the download is logged (by ``ProcessLogger``)
+        and swallowed here, so the function returns None. Change the ``except``
+        block to re-raise if the caller needs to detect failure.
     """
 
-    # Initialize process timing and logging
-    start_time = datetime.now()
-    logger.info("=" * 80)
-    logger.info(
-        f"STARTING: Xero Blue Download Activity Statement Report - {start_time.strftime('%Y-%m-%d %H:%M:%S')}",
-    )
-    logger.info(f"Statement Period    : {xero_statement_period}")
-    logger.info(f"Financial Year      : {xero_financial_year}")
-    logger.info(f"Window Title        : {window_title}")
-    logger.info(f"Download Directory  : {xero_download_directory}")
-    logger.info(f"Report File Name    : {xero_report_file_name}")
-    logger.info(f"Extension           : {extension}")
-    logger.info("=" * 80)
-
     try:
+        with ProcessLogger("Xero Blue Download Activity Statement Report", logger):
+            # Echo the request so the log is self-describing
+            for line in request.summary_lines():
+                logger.info(line)
 
-        # STEP 1: Navigate to the Activity Statement Report Page
-        # Purpose: Access the Activity Statement report page in Xero Blue
-        # Function: navigated_to_activity_statement_report()
-        # - Checks if the ATO lodge dialog is present and handles it
-        # - Clicks through wizard steps if the dialog appears
-        # - Selects the specified statement period and financial year
-        logger.info("STEP 1: Navigating to Activity Statement report page...")
-        navigated_to_activity_statement_report(
-            browser,
-            xero_statement_period,
-            xero_financial_year,
-        )
-        logger.info(
-            "STEP 1 COMPLETED: Successfully navigated to Activity Statement report page",
-        )
+            # STEP 1: reach the report page (handles the ATO lodge wizard if
+            # present) and select the period within its financial year.
+            logger.info("STEP 1: Navigating to Activity Statement report page...")
+            navigated_to_activity_statement_report(browser, request.period)
+            logger.info("STEP 1 COMPLETED: navigated to report page")
 
-        # STEP 2: Export the Activity Statement Report
-        # Purpose: Export the report in Excel format and save to the download directory
-        # Function: run_report_export()
-        # - Clicks the Export button to open export options
-        # - Selects Excel format from the export options
-        # - Confirms export and triggers the browser download dialog
-        # - Handles the save dialog to save the file to the specified directory
-        logger.info("STEP 2: Exporting Activity Statement report as Excel file...")
-        run_report_export(
-            browser,
-            window_title,
-            xero_download_directory,
-            xero_report_file_name,
-            extension,
-        )
-        logger.info("STEP 2 COMPLETED: Successfully exported Activity Statement report")
+            # STEP 2: export the report as Excel and save it.
+            logger.info("STEP 2: Exporting Activity Statement report as Excel file...")
+            run_report_export(browser, request)
+            logger.info("STEP 2 COMPLETED: report exported")
 
-        # Log completion
-        end_time = datetime.now()
-        duration = (end_time - start_time).total_seconds()
-        logger.info("=" * 80)
-        logger.info(
-            f"COMPLETED: Xero Blue Download Activity Statement Report - {end_time.strftime('%Y-%m-%d %H:%M:%S')}",
-        )
-        logger.info(f"Duration           : {duration:.2f} seconds")
-        logger.info(f"Report File Name   : {xero_report_file_name}")
-        logger.info(f"Download Directory : {xero_download_directory}")
-        logger.info(f"Result             : SUCCESS")
-        logger.info("=" * 80)
-
-    except Exception as e:
-        end_time = datetime.now()
-        duration = (end_time - start_time).total_seconds()
-        logger.error("=" * 80)
-        logger.error(
-            f"FAILED: Xero Blue Download Activity Statement Report - {end_time.strftime('%Y-%m-%d %H:%M:%S')}",
-        )
-        logger.error(f"Duration : {duration:.2f} seconds")
-        logger.error(f"Error    : {str(e)}", exc_info=True)
-        logger.error("=" * 80)
-        # NOTE: behaviour preserved from original — the error is logged and
-        # swallowed (the function returns None rather than re-raising). If the
-        # caller needs to know this step failed, change this to `raise`.
+    except Exception:
+        # The failure was already logged by ProcessLogger. Swallow it here so the
+        # caller receives None. Change this to `raise` to propagate instead.
         return
 
 
-def navigated_to_activity_statement_report(
-    browser,
-    xero_statement_period,
-    xero_financial_year,
-):
+def navigated_to_activity_statement_report(browser, period: StatementPeriod) -> None:
     """
     Navigate to the Activity Statement report page in Xero Blue.
 
-    This function handles the navigation flow to reach the Activity Statement report.
-    If the ATO lodge dialog appears, it clicks through the dialog steps to reach
-    the statement page. Finally, it selects the appropriate statement period and
-    financial year.
+    If the ATO lodge dialog appears, clicks through its wizard steps to reach
+    the statement page, then selects the requested period.
 
     Args:
         browser: SeleniumBrowser wrapper instance.
-        xero_statement_period (str): Statement period to select (e.g., "July 2024 - September 2024").
-        xero_financial_year (str): Financial year for the report (e.g., "2024-2025").
+        period (StatementPeriod): The period to select (e.g. September 2024).
 
     Returns:
         None
@@ -162,8 +195,6 @@ def navigated_to_activity_statement_report(
         "xpath://button[normalize-space(text())='Lodge reports to ATO outside of Xero']"
     )
 
-    # Check if the ATO lodge dialog is displayed
-    # This dialog may appear depending on Xero account settings
     logger.info(
         "Checking if 'Lodge reports to ATO outside of Xero' dialog is present...",
     )
@@ -171,30 +202,25 @@ def navigated_to_activity_statement_report(
 
         logger.info("ATO lodge dialog detected - proceeding through dialog steps")
 
-        # Click the "Lodge reports to ATO outside of Xero" button to proceed
         browser.click_element(lodge_report_locator, timeout=5)
         logger.info("Clicked 'Lodge reports to ATO outside of Xero' button")
 
-        # Navigate to Activity Statement from the ATO dialog
         browser.click_element(
             "xpath://button[normalize-space(text())='Go to Activity Statement']",
             timeout=5,
         )
         logger.info("Clicked 'Go to Activity Statement' button")
 
-        # Click through the wizard "Next" button (step 1)
-        # NOTE: steps 1 and 2 share the same locator. This relies on Xero
-        # re-rendering the button between steps. If both Next buttons ever
-        # coexist in the DOM, give each step a more specific locator.
+        # Steps 1 and 2 share the same locator. This relies on Xero re-rendering
+        # the button between steps. If both Next buttons ever coexist in the DOM,
+        # give each step a more specific locator.
         next_button_locator = "xpath://button[normalize-space(text())='Next']"
         browser.click_element(next_button_locator, timeout=5)
         logger.info("Clicked 'Next' button - Step 1 of wizard")
 
-        # Click through the wizard "Next" button (step 2)
         browser.click_element(next_button_locator, timeout=5)
         logger.info("Clicked 'Next' button - Step 2 of wizard")
 
-        # Complete the wizard by clicking "OK" button
         browser.click_element(
             "xpath://button[normalize-space(text())='OK']",
             timeout=5,
@@ -203,34 +229,32 @@ def navigated_to_activity_statement_report(
 
     else:
         logger.info(
-            "ATO lodge dialog not present - proceeding directly to statement period selection",
+            "ATO lodge dialog not present - proceeding directly to period selection",
         )
 
-    # Select the desired statement period and financial year
-    # This creates a new statement or selects an existing one
     logger.info(
-        f"Selecting statement period: '{xero_statement_period}' for financial year: '{xero_financial_year}'",
+        f"Selecting statement period '{period}' (financial year '{period.fiscal_year_label}')",
     )
-    select_statement_period(browser, xero_statement_period, xero_financial_year)
 
+    try:
+    	select_statement_period(browser, period)
+    except Exception as e:
+    	raise RuntimeError(f"Failed selecting period {period}") from 
 
 def is_lodge_reports_dialog_present(browser, lodge_report_locator) -> bool:
     """
-    Check if the 'Lodge reports to ATO outside of Xero' dialog is present on the page.
+    Check whether the 'Lodge reports to ATO outside of Xero' dialog is present.
 
     Args:
         browser: SeleniumBrowser wrapper instance.
-        lodge_report_locator (str): Wrapper locator string for the lodge reports button
-            (e.g. "xpath://button[...]").
+        lodge_report_locator (str): Wrapper locator string for the lodge button.
 
     Returns:
-        bool: True if the lodge dialog button is found within the timeout, False otherwise.
+        bool: True if the button is found within the timeout, else False.
 
     Note:
-        Uses the wrapper's ``does_page_contain_element`` which checks element
-        *presence* (in the DOM), whereas the original used *visibility*. For this
-        button the two are equivalent in practice; if Xero ever renders a hidden
-        copy of the button, switch this to a visibility-based check.
+        Uses the wrapper's ``does_page_contain_element`` (DOM presence). If Xero
+        ever renders a hidden copy of the button, switch to a visibility check.
     """
     present = browser.does_page_contain_element(lodge_report_locator, timeout=5)
     if present:
@@ -240,91 +264,51 @@ def is_lodge_reports_dialog_present(browser, lodge_report_locator) -> bool:
     return present
 
 
-def select_statement_period(browser, xero_statement_period, xero_financial_year):
+def select_statement_period(browser, period: StatementPeriod) -> None:
     """
-    Select the statement period and navigate to the Transactions tab.
+    Create a new statement and select the requested period.
 
-    This function creates a new statement and selects the specified statement period.
-    If the period is not present in the default view, it expands the financial year
-    selector to find and select the correct period within the specified financial year.
+    Expands the financial-year selector, picks the FY range that contains the
+    period, selects the period itself, then opens the Transactions tab.
 
     Args:
         browser: SeleniumBrowser wrapper instance.
-        xero_statement_period (str): Statement period to select (e.g., "July 2024 - September 2024").
-        xero_financial_year (str): Financial year for the report (e.g., "2024-2025").
+        period (StatementPeriod): The period to select (e.g. September 2024).
 
     Returns:
         None
     """
 
-    # Initiate the creation of a new activity statement
+    # Initiate creation of a new activity statement
     browser.click_element(
         "xpath://button[.//span[normalize-space(text())='Create new statement']]",
         timeout=5,
     )
     logger.info("Clicked 'Create new statement' button")
 
-    statement_locator = f"xpath://div[normalize-space(text())='{xero_statement_period}']"
+    # Periods belonging to other financial years are not rendered until that
+    # year is expanded, so we always open the year selector first.
+    all_years_locator = (
+        "xpath://button[@data-automationid='financial-period-header--button-back']"
+    )
+    browser.click_element(all_years_locator, timeout=5)
+    logger.info("Opened financial year selector")
 
-    # Try to select the statement period directly if it is already in the current view.
-    # NOTE: this is a presence check (replaces the original try/except on a
-    # visibility wait). In Xero's period picker, periods belonging to other
-    # financial years are normally not rendered until that year is expanded, so
-    # presence here behaves like the original visibility test while keeping the
-    # logs quiet on the expected "not in view" path.
-    if browser.does_page_contain_element(statement_locator, timeout=5):
-        logger.info(
-            f"Statement period visible in current view - selecting directly: '{xero_statement_period}'",
-        )
-        browser.click_element(statement_locator, timeout=5)
-        logger.info(
-            f"Successfully selected statement period: '{xero_statement_period}'",
-        )
+    # Select the FY range that contains this period (e.g. "2024/25").
+    financial_year_locator = (
+        f"xpath://button[contains(@class,'xui-pickitem--body')]"
+        f"[.//div[normalize-space(.)='{period.fiscal_year_label}']]"
+    )
+    browser.click_element(financial_year_locator, timeout=5)
+    logger.info(f"Selected financial year: '{period.fiscal_year_label}'")
 
-    else:
-        # Period belongs to a different financial year - expand the year selector.
-        logger.info(
-            f"Statement period not in current view - expanding financial year selector for: '{xero_financial_year}'",
-        )
-
-        # Click dropdown to show all available years.
-        # BUG FIX: original XPath "//*[id='panel-select-period']//svg" was missing
-        # the '@' before the attribute name (`id` -> `@id`), so it matched a child
-        # element literally named "id" instead of the id attribute, and never
-        # found the dropdown.
-        all_years_locator = "xpath://button[@data-automationid='financial-period-header--button-back']"
-        browser.click_element(all_years_locator, timeout=5)
-        logger.info("Clicked financial year dropdown to expand all years")
-
-        # Select the specific financial year from the dropdown.
-        # BUG FIX: original XPath "//*['{year}']//div" was invalid — a bare string
-        # literal as a predicate is always truthy, so it matched every element.
-        # Replaced with a text match on the year.
-        # TODO: VERIFY this locator against the live Xero DOM — the exact element
-        # that carries the financial-year label may differ.
-
-        year = '2024/25'
-        financial_year_locator = (
-            f"xpath://button[contains(@class,'xui-pickitem--body')][.//div[normalize-space(.)='{year}']]"
-        )
-
-        # financial_year_locator = (
-        #     f"xpath://div[normalize-space(text())='{xero_financial_year}']"
-        # )
-        browser.click_element(financial_year_locator, timeout=5)
-        logger.info(f"Selected financial year: '{xero_financial_year}'")
-
-        # Now select the statement period within the chosen financial year
-        
-        period = 'September 2024'
-        statement_locator = (
-            f"xpath://button[contains(@class,'xui-pickitem--body')][.//div[normalize-space(.)='{period}']]"
-        )
-        
-        browser.click_element(statement_locator, timeout=5)
-        logger.info(
-            f"Successfully selected statement period: '{xero_statement_period}'",
-        )
+    # Select the period itself within the chosen year (e.g. "September 2024").
+    statement_locator = (
+        f"xpath://button[contains(@class,'xui-pickitem--body')]"
+        f"[.//div[normalize-space(.)='{period}']]"
+    )
+    browser.click_element(statement_locator, timeout=5)
+    logger.info(f"Successfully selected statement period: '{period}'")
 
     # Navigate to the Transactions tab to view statement details
     logger.info("Navigating to the 'Transactions' tab...")
@@ -335,77 +319,54 @@ def select_statement_period(browser, xero_statement_period, xero_financial_year)
     logger.info("Clicked 'Transactions' tab - Statement details are now visible")
 
 
-def run_report_export(
-    browser,
-    window_title,
-    xero_download_directory,
-    xero_report_file_name,
-    extension,
-):
+def run_report_export(browser, request: ActivityStatementRequest) -> None:
     """
-    Export the Activity Statement report as an Excel file.
+    Export the Activity Statement report as an Excel file and save it.
 
-    This function handles the full export process by clicking the Export button,
-    selecting Excel format from the export options, and triggering the file download.
-    It then uses the download file utility to handle the save dialog and save the
-    file to the specified directory with the given filename.
+    Clicks Export, picks the Excel format, confirms, then handles the Chrome
+    save dialog to write the file to the request's destination path.
 
     Args:
         browser: SeleniumBrowser wrapper instance.
-        window_title (str): Window title of the browser download dialog.
-        xero_download_directory (str): Directory path where the report will be saved.
-        xero_report_file_name (str): Desired filename for the downloaded report.
-        extension (str): File extension for the downloaded report (e.g., ".xlsx").
+        request (ActivityStatementRequest): Supplies window title and dest path.
 
     Returns:
         None
     """
 
-    # Locate the Export button to open export options
     logger.info("Locating 'Export' button on the report page...")
     export_btn_locator = (
         "xpath://button[@type='button' and normalize-space(text())='Export']"
     )
 
-    if browser.does_page_contain_element(export_btn_locator, timeout=5):
-        # Click the Export button (wrapper clicks the first match)
-        browser.click_element(export_btn_locator, timeout=5)
-        logger.info("Clicked 'Export' button - Export options panel is now open")
+    if not browser.does_page_contain_element(export_btn_locator, timeout=5):
+  		raise RuntimeError("'Export' button not found - cannot export report")
 
-        # Select Excel format from the export options
-        # This ensures the report is downloaded in .xlsx format
-        logger.info("Selecting Excel format for the report export...")
-        browser.click_element(
-            "xpath://label[@data-automationid='bas-excel-radio-button']",
-            timeout=5,
-        )
-        logger.info("Selected 'Excel' radio button as the export format")
+    browser.click_element(export_btn_locator, timeout=5)
+    logger.info("Clicked 'Export' button - Export options panel is now open")
 
-        # Confirm the export by clicking the final Export button
-        # This triggers the browser's download/save dialog
-        logger.info("Confirming export by clicking the final 'Export' button...")
-        browser.click_element(
-            "xpath://button[@type='button' and @data-automationid='bas-export-button' and normalize-space(text())='Export']",
-            timeout=5,
-        )
-        logger.info("Clicked final 'Export' button - File download dialog triggered")
+    # Choose Excel as the export format
+    logger.info("Selecting Excel format for the report export...")
+    browser.click_element(
+        "xpath://label[@data-automationid='bas-excel-radio-button']",
+        timeout=5,
+    )
+    logger.info("Selected 'Excel' radio button as the export format")
 
-        # Handle the file save dialog and save to the specified directory
-        dest_path = os.path.join(
-            xero_download_directory, f"{xero_report_file_name}{extension}"
-        )
-        logger.info(
-            f"Handling file save dialog - saving to: '{dest_path}'",
-        )
-        handle_chrome_save_as_dialog(
-            window_locator=f"regex:.*{window_title}.* - Google Chrome",
-            dest_path=dest_path,
-        )
-        logger.info(
-            f"File successfully saved: '{xero_report_file_name}{extension}' in '{xero_download_directory}'",
-        )
+    # Confirm the export - triggers the browser's download/save dialog
+    logger.info("Confirming export by clicking the final 'Export' button...")
+    browser.click_element(
+        "xpath://button[@type='button' and @data-automationid='bas-export-button' "
+        "and normalize-space(text())='Export']",
+        timeout=5,
+    )
+    logger.info("Clicked final 'Export' button - File download dialog triggered")
 
-    else:
-        logger.warning(
-            "'Export' button was not found on the page - skipping export step",
-        )
+    # Handle the Chrome save dialog and save to the requested path
+    dest_path = request.dest_path
+    logger.info(f"Handling file save dialog - saving to: '{dest_path}'")
+    handle_chrome_save_as_dialog(
+        window_locator=f"regex:.*{request.window_title}.* - Google Chrome",
+        dest_path=dest_path,
+    )
+    logger.info(f"File successfully saved: '{dest_path}'")
