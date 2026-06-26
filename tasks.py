@@ -27,6 +27,9 @@ from iaa_rpa_xero_blue.xero_blue_download_gst_reconciliation_report import xero_
 from iaa_rpa_xero_blue.xero_blue_download_general_ledger_detail_report import xero_blue_download_general_ledger_details_report
 from iaa_rpa_xero_blue.xero_blue_download_trial_balance_report import xero_blue_download_trial_balance_report
 from iaa_rpa_xero_blue.xero_blue_download_activity_statement_report import xero_blue_download_activity_statement_report
+from iaa_rpa_xero_blue.add_ons.download_activity_statement_report import download_activity_statement_report
+
+
 
 logger = get_logger(__name__)
 
@@ -82,11 +85,11 @@ def impact_main() -> None:
 
     try:
         with ProcessLogger("Report page", logger):
-            xero_blue_download_activity_statement_report(
+            download_activity_statement_report(
                 browser,
                 xero_statement_period= "June 2025",
                 xero_financial_year = "2024/25",
-                window_title = "Trial Balance",
+                window_title = "Activity Statement",
                 xero_download_directory ="C:\\Users\\VirtualAssistant\\Downloads\\xero",
                 xero_report_file_name = "ACME_Activity_Statement_2026",  
                 #xero_report_name = "GST Reconciliation",

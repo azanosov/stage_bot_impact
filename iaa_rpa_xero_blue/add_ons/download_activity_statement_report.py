@@ -25,7 +25,7 @@ from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog
 logger = setup_logger(__name__)
 
 
-def xero_blue_download_activity_statement_report(
+def download_activity_statement_report(
     browser,
     xero_statement_period: str,
     xero_financial_year: str,
@@ -292,7 +292,7 @@ def select_statement_period(browser, xero_statement_period, xero_financial_year)
         # the '@' before the attribute name (`id` -> `@id`), so it matched a child
         # element literally named "id" instead of the id attribute, and never
         # found the dropdown.
-        all_years_locator = "xpath://*[@id='panel-select-period']//svg"
+        all_years_locator = "xpath://button[@data-automationid='financial-period-header--button-back']"
         browser.click_element(all_years_locator, timeout=5)
         logger.info("Clicked financial year dropdown to expand all years")
 
@@ -302,13 +302,25 @@ def select_statement_period(browser, xero_statement_period, xero_financial_year)
         # Replaced with a text match on the year.
         # TODO: VERIFY this locator against the live Xero DOM — the exact element
         # that carries the financial-year label may differ.
+
+        year = '2024/25'
         financial_year_locator = (
-            f"xpath://div[normalize-space(text())='{xero_financial_year}']"
+            f"xpath://button[contains(@class,'xui-pickitem--body')][.//div[normalize-space(.)='{year}']]"
         )
+
+        # financial_year_locator = (
+        #     f"xpath://div[normalize-space(text())='{xero_financial_year}']"
+        # )
         browser.click_element(financial_year_locator, timeout=5)
         logger.info(f"Selected financial year: '{xero_financial_year}'")
 
         # Now select the statement period within the chosen financial year
+        
+        period = 'September 2024'
+        statement_locator = (
+            f"xpath://button[contains(@class,'xui-pickitem--body')][.//div[normalize-space(.)='{period}']]"
+        )
+        
         browser.click_element(statement_locator, timeout=5)
         logger.info(
             f"Successfully selected statement period: '{xero_statement_period}'",
