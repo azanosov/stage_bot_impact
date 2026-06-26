@@ -15,9 +15,9 @@ from .download_file import download_file
 logger = setup_logger(__name__)
 
 
-def xero_blue_download_aged_receivablesdetailreport(
+def xero_blue_download_aged_receivables_detail_report(
     browser,
-    client_name: str,
+    xero_client_name: str,
     end_date: str,
     financial_year: str,
     is_add_gst_column: bool,
@@ -38,7 +38,7 @@ def xero_blue_download_aged_receivablesdetailreport(
     Args:
         browser: Browser instance containing an active Selenium WebDriver for interacting
             with the Xero web application.
-        client_name (str): Name of the client organization for logging and audit purposes.
+        xero_client_name (str): Name of the client organization for logging and audit purposes.
         end_date (str): Report end date in 'DD MMM YYYY' format (e.g., '30 Jun 2024').
             If empty string, defaults to '30 Jun {financial_year}'.
         financial_year (str): Financial year as a 4-digit string (e.g., '2024') used to
@@ -71,7 +71,7 @@ def xero_blue_download_aged_receivablesdetailreport(
     Example:
         >>> xero_blue_download_aged_receivablesdetailreport(
         ...     browser=my_browser,
-        ...     client_name="ACME Corp",
+        ...     xero_client_name="ACME Corp",
         ...     end_date="31 Dec 2024",
         ...     financial_year="2024",
         ...     is_add_gst_column=True,
@@ -87,7 +87,7 @@ def xero_blue_download_aged_receivablesdetailreport(
     logger.info(
         f"STARTING: Xero Blue - Download Aged Receivables Detail Report - {start_time.strftime('%Y-%m-%d %H:%M:%S')}",
     )
-    logger.info(f"Client Name: {client_name}")
+    logger.info(f"Client Name: {xero_client_name}")
     logger.info(
         f"End Date: {end_date if end_date else f'30 Jun {financial_year} (default)'}",
     )

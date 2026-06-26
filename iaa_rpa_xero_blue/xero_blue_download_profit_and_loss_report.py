@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
-import time
 from datetime import datetime
+from typing import Any
 
 from iaa_rpa_utils import setup_logger
 from selenium.webdriver.common.by import By
@@ -11,29 +11,28 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 
 from . import selenium_helper as helper
-from .download_file import download_file
-from .take_screenshot import take_screenshot
+from .download_file import generate_and_export_report
 
 # Set up logger
 logger = setup_logger(__name__)
 
 
 def xero_blue_download_profit_and_loss_report(
-    browser,
-    client_name,
-    xero_start_date,
-    xero_end_date,
-    xero_financial_year,
-    window_title,
-    download_directory_path,
-    xero_report_file_name,
-    extension,
-    account_basis,
-    report_setting_chk_options,
-    compare_with,
-    number_of_periods,
-    custom_report_name,
-):
+    browser: Any,
+    client_name: str,
+    xero_start_date: str | None,
+    xero_end_date: str | None,
+    xero_financial_year: str,
+    window_title: str,
+    download_directory_path: str,
+    xero_report_file_name: str,
+    extension: list[str],
+    account_basis: str | None,
+    report_setting_chk_options: list[str] | None,
+    compare_with: str | None,
+    number_of_periods: int,
+    custom_report_name: str | None,
+) -> None:
     """
     Download Profit and Loss report from Xero Blue with customizable settings.
 
@@ -208,7 +207,7 @@ def xero_blue_download_profit_and_loss_report(
         raise
 
 
-def resolve_report_dates(xero_start_date, xero_end_date, xero_financial_year):
+def resolve_report_dates(xero_start_date: str | None, xero_end_date: str | None, xero_financial_year: str) -> tuple[str, str]:
     """
     Determine and format the start and end dates for the Profit and Loss report.
 
@@ -253,10 +252,10 @@ def resolve_report_dates(xero_start_date, xero_end_date, xero_financial_year):
 
 
 def configure_report_dates(
-    driver,
-    str_start_date,
-    str_end_date,
-):
+    driver: Any,
+    str_start_date: str,
+    str_end_date: str,
+) -> None:
     """
     Enter the start and end dates into the Xero Profit and Loss date fields.
 
@@ -274,101 +273,12 @@ def configure_report_dates(
     Raises:
         TimeoutException: If the date input fields cannot be located within 10 seconds.
     """
-    from_elem = helper.type_into_element(driver, "report-settings-custom-date-input-from", str_start_date, by=By.ID)
-    from_elem.send_keys(Keys.TAB)
+    from_elem = helper.type_into_date_element(driver, "report-settings-custom-date-input-from", str_start_date, by=By.ID)
 
-    to_elem = helper.type_into_element(driver, "report-settings-custom-date-input-to", str_end_date, by=By.ID)
-    to_elem.send_keys(Keys.TAB)
+    to_elem = helper.type_into_date_element(driver, "report-settings-custom-date-input-to", str_end_date, by=By.ID)
 
 
-def generate_and_export_report(
-    driver,
-    window_title,
-    download_directory_path,
-    xero_report_file_name,
-    extension,
-):
-    """
-    Generate the Profit and Loss report and export it in one or more formats.
-
-    Triggers report generation by clicking the Update button, verifies that data is
-    available for export, then iterates over each requested extension — opening the Export
-    menu, selecting the matching format button, and saving the file via the save dialog.
-
-    Args:
-        driver: Selenium WebDriver instance for browser automation.
-        window_title (str): Title of the browser window used to locate the save dialog.
-        download_directory_path (str): Absolute path to the directory where files will be saved.
-        xero_report_file_name (str): Base filename for the downloaded report (without extension).
-        extension (list[str]): File formats to export — ".xlsx" and/or ".pdf".
-            Defaults to [".xlsx"] if None or empty.
-
-    Returns:
-        str: File path of the screenshot taken after the report was generated.
-
-    Raises:
-        Exception: If the Update button is not clickable, the Export button is not available
-            (indicating no data), or any step in the export/save process fails.
-    """
-    format_button_labels = {
-        ".xlsx": "Excel",
-        ".pdf": "PDF",
-    }
-
-    extensions = extension if extension else [".xlsx"]
-
-    update_xpath = "//button[@type='button' and normalize-space(text())='Update']"
-    export_xpath = "//button[@type='button' and normalize-space(text())='Export']"
-    report_title_xpath = "//input[@placeholder='Report title']"
-
-    helper.click_element(driver, update_xpath)
-    helper.find_element(driver, report_title_xpath)
-    logger.info("Report rendered successfully")
-
-    screenshot_file_path = take_screenshot(driver)
-    logger.info(f"Screenshot saved: {screenshot_file_path}")
-
-    if not is_export_button_available(driver):
-        logger.warning("Export button not found - no Profit and Loss data available for this client")
-        raise Exception("No Profit and Loss data available for this client.")
-
-    for ext in extensions:
-        format_label = format_button_labels.get(ext, "Excel")
-        format_xpath = f"//button[@type='button']//span[normalize-space(text())='{format_label}']"
-
-        logger.info(f"Exporting as {format_label} ({ext})...")
-        helper.click_element(driver, export_xpath)
-        helper.click_element(driver, format_xpath)
-
-        time.sleep(3)
-
-        logger.info(f"Saving report to: {download_directory_path}")
-        download_file(window_title, download_directory_path, xero_report_file_name, ext)
-        logger.info(f"Report saved as '{xero_report_file_name}{ext}' in '{download_directory_path}'")
-
-    return screenshot_file_path
-
-
-def is_export_button_available(driver):
-    """
-    Check whether the Export button is present on the report page.
-
-    Verifies if the Export button appears after the report is generated. The presence
-    of this button indicates that the report contains data and is ready for export.
-    If the button is not found within the timeout, it suggests no data is available
-    for the current report settings.
-
-    Args:
-        driver: Selenium WebDriver instance for browser automation.
-
-    Returns:
-        bool: True if the Export button is visible within 5 seconds, False if not found.
-    """
-    export_xpath = "//button[@type='button' and normalize-space(text())='Export']"
-    return helper.element_exists(driver, export_xpath, timeout=5)
-
-
-def configure_report_settings(driver, account_basis: str, report_setting_chk_options: list) -> None:
+def configure_report_settings(driver: Any, account_basis: str | None, report_setting_chk_options: list[str] | None) -> None:
     """
     Configure report settings by opening the 'More' panel, setting the accounting basis,
     and enabling any specified checkbox options.
@@ -419,7 +329,7 @@ def configure_report_settings(driver, account_basis: str, report_setting_chk_opt
 
 
 
-def click_custom_report_link(driver, custom_report_name: str) -> None:
+def click_custom_report_link(driver: Any, custom_report_name: str) -> None:
     """
     Click the saved report link matching custom_report_name.
 
@@ -442,7 +352,7 @@ def click_custom_report_link(driver, custom_report_name: str) -> None:
     helper.click_element(driver, xpath)
 
 
-def configure_compare_with(driver, compare_with: str, number_of_periods: int) -> None:
+def configure_compare_with(driver: Any, compare_with: str, number_of_periods: int) -> None:
     """
     Select a comparison period from the Compare With dropdown and set the number of periods.
 

@@ -19,13 +19,13 @@ logger = setup_logger(__name__)
 
 def xero_blue_download_trial_balance_report(
     browser,
-    client_name,
+    xero_client_name,
     xero_end_date,
     xero_financial_year,
     is_add_gst_column,
     window_title,
-    download_directory_path,
-    xero_report_file_name,
+    download_directory,
+    report_file_name,
     extension,
 ):
     """
@@ -37,7 +37,7 @@ def xero_blue_download_trial_balance_report(
 
     Args:
         browser: Browser instance containing the Selenium WebDriver with an active Xero session.
-        client_name (str): Name of the Xero client/organization for logging purposes.
+        xero_client_name (str): Name of the Xero client/organization for logging purposes.
         xero_end_date (str): End date for the report in format "DD Mon YYYY" (e.g., "30 Jun 2024").
             If None or empty, defaults to financial year end (30 Jun of xero_financial_year).
         xero_financial_year (str): Financial year for the report (e.g., "2024").
@@ -45,8 +45,8 @@ def xero_blue_download_trial_balance_report(
         is_add_gst_column (bool): Flag to include GST/Tax column in the report.
             True adds "Outstanding GST" column, False excludes it.
         window_title (str): Title of the browser window, used to locate the save dialog.
-        download_directory_path (str): Absolute path to the directory where the Excel file will be saved.
-        xero_report_file_name (str): Desired filename for the downloaded report including .xlsx extension.
+        download_directory (str): Absolute path to the directory where the Excel file will be saved.
+        report_file_name (str): Desired filename for the downloaded report including .xlsx extension.
         extension (str): File extension used when saving the downloaded report (e.g., ".xlsx").
 
     Returns:
@@ -60,13 +60,13 @@ def xero_blue_download_trial_balance_report(
     Example:
         >>> xero_blue_download_trial_balance_report(
         ...     browser=my_browser,
-        ...     client_name="ABC Company",
+        ...     xero_client_name="ABC Company",
         ...     xero_end_date="30 Jun 2024",
         ...     xero_financial_year="2024",
         ...     is_add_gst_column=True,
         ...     window_title="Trial Balance - Xero",
-        ...     download_directory_path="C:/Reports",
-        ...     xero_report_file_name="trial_balance_2024.xlsx",
+        ...     download_directory="C:/Reports",
+        ...     report_file_name="trial_balance_2024.xlsx",
         ...     extension=".xlsx"
         ... )
     """
@@ -75,14 +75,14 @@ def xero_blue_download_trial_balance_report(
     logger.info("=" * 80)
     logger.info("STARTING: Xero Blue Download Trial Balance Report")
     logger.info(f"Start Time        : {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-    logger.info(f"Client Name       : {client_name}")
+    logger.info(f"Client Name       : {xero_client_name}")
     logger.info(
         f"End Date          : {xero_end_date if xero_end_date else 'Using Financial Year Default'}",
     )
     logger.info(f"Financial Year    : {xero_financial_year}")
     logger.info(f"GST Column        : {'Enabled' if is_add_gst_column else 'Disabled'}")
-    logger.info(f"Download Directory: {download_directory_path}")
-    logger.info(f"Report File Name  : {xero_report_file_name}")
+    logger.info(f"Download Directory: {download_directory}")
+    logger.info(f"Report File Name  : {report_file_name}")
     logger.info("=" * 80)
 
     try:
@@ -112,7 +112,7 @@ def xero_blue_download_trial_balance_report(
 
         # STEP 3: Generate Report and Export to Excel
         # Purpose: Trigger report generation, verify data exists, export as Excel, and save the file
-        # Function: generate_and_export_report(driver, window_title, download_directory_path, xero_report_file_name, extension)
+        # Function: generate_and_export_report(driver, window_title, download_directory, report_file_name, extension)
         # - Clicks Update button to generate the report with configured settings
         # - Waits for report title to confirm rendering is complete
         # - Takes a screenshot of the generated report for audit trail
@@ -123,8 +123,8 @@ def xero_blue_download_trial_balance_report(
         screenshot_file_path = generate_and_export_report(
             driver,
             window_title,
-            download_directory_path,
-            xero_report_file_name,
+            download_directory,
+            report_file_name,
             extension,
         )
 
@@ -135,8 +135,8 @@ def xero_blue_download_trial_balance_report(
         logger.info("COMPLETED: Xero Blue Download Trial Balance Report")
         logger.info(f"End Time          : {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
         logger.info(f"Duration          : {duration:.2f} seconds")
-        logger.info(f"Client Name       : {client_name}")
-        logger.info(f"Report File Name  : {xero_report_file_name}")
+        logger.info(f"Client Name       : {xero_client_name}")
+        logger.info(f"Report File Name  : {report_file_name}")
         logger.info(f"Screenshot Path   : {screenshot_file_path}")
         logger.info(f"Status            : SUCCESS")
         logger.info("=" * 80)
@@ -149,8 +149,8 @@ def xero_blue_download_trial_balance_report(
         logger.error("FAILED: Xero Blue Download Trial Balance Report")
         logger.error(f"End Time          : {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
         logger.error(f"Duration          : {duration:.2f} seconds")
-        logger.error(f"Client Name       : {client_name}")
-        logger.error(f"Report File Name  : {xero_report_file_name}")
+        logger.error(f"Client Name       : {xero_client_name}")
+        logger.error(f"Report File Name  : {report_file_name}")
         logger.error(f"Error             : {e}")
         logger.error(f"Status            : FAILED")
         logger.error("=" * 80)
@@ -287,8 +287,8 @@ def configure_gst_column_visibility(driver, is_add_gst_column):
 def generate_and_export_report(
     driver,
     window_title,
-    download_directory_path,
-    xero_report_file_name,
+    download_directory,
+    report_file_name,
     extension,
 ):
     """
@@ -301,8 +301,8 @@ def generate_and_export_report(
     Args:
         driver: Selenium WebDriver instance for browser automation.
         window_title (str): Title of the browser window used to locate the save dialog.
-        download_directory_path (str): Absolute path to the directory where the file will be saved.
-        xero_report_file_name (str): Filename for the downloaded report including .xlsx extension.
+        download_directory (str): Absolute path to the directory where the file will be saved.
+        report_file_name (str): Filename for the downloaded report including .xlsx extension.
         extension (str): File extension used when saving the downloaded report (e.g., ".xlsx").
 
     Returns:
@@ -365,16 +365,16 @@ def generate_and_export_report(
 
     # Handle the file save dialog and save the report to the specified directory
     logger.info(
-        f"Handling file save dialog - saving report to: {download_directory_path}",
+        f"Handling file save dialog - saving report to: {download_directory}",
     )
     download_file(
         window_title,
-        download_directory_path,
-        xero_report_file_name,
+        download_directory,
+        report_file_name,
         extension,
     )
     logger.info(
-        f"Report saved successfully as '{xero_report_file_name}' in '{download_directory_path}'",
+        f"Report saved successfully as '{report_file_name}' in '{download_directory}'",
     )
 
     return screenshot_file_path

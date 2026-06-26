@@ -16,7 +16,7 @@ logger = setup_logger(__name__)
 
 def xero_blue_download_general_ledger_details_report(
     browser,
-    client_name,
+    xero_client_name,
     xero_end_date,
     xero_financial_year,
     xero_start_date,
@@ -37,7 +37,7 @@ def xero_blue_download_general_ledger_details_report(
     Args:
         browser: Selenium browser object containing the WebDriver instance.
                  Must be already logged into Xero and navigated to the General Ledger Detail report page.
-        client_name (str): Name of the Xero client organization for logging purposes.
+        xero_client_name (str): Name of the Xero client organization for logging purposes.
                           Example: "ABC Company Pty Ltd"
         xero_end_date (str): End date for the report in "d MMM yyyy" format (e.g., "30 Jun 2024").
                             If not provided, defaults to "30 Jun {xero_financial_year}".
@@ -82,7 +82,7 @@ def xero_blue_download_general_ledger_details_report(
         >>> # ... login and navigation code ...
         >>> xero_blue_download_general_ledger_details_report(
         ...     browser=browser,
-        ...     client_name="ABC Company Pty Ltd",
+        ...     xero_client_name="ABC Company Pty Ltd",
         ...     xero_end_date="30 Jun 2024",
         ...     xero_financial_year="2024",
         ...     xero_start_date="1 Jul 2023",
@@ -97,7 +97,7 @@ def xero_blue_download_general_ledger_details_report(
     logger.info("XERO BLUE DOWNLOAD GENERAL LEDGER DETAIL REPORT PROCESS STARTED")
     logger.info("=" * 80)
     logger.info(f"Start time: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-    logger.info(f"Client name: {client_name}")
+    logger.info(f"Client name: {xero_client_name}")
     logger.info(
         f"Start Date: {xero_start_date if xero_start_date else f'1 Jul {int(xero_financial_year) - 1}'}",
     )

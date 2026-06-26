@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from iaa_rpa_utils import setup_logger
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
@@ -58,7 +59,26 @@ def type_into_element(driver: WebDriver, selector: str, value, by: str = By.XPAT
     element = WebDriverWait(driver, timeout).until(
         EC.element_to_be_clickable((by, selector))
     )
-    element.clear()
+
+    element.send_keys(Keys.CONTROL + 'a')
+    element.send_keys(Keys.DELETE)
     element.send_keys(str(value))
     logger.info(f"Typed '{value}' into: {selector}")
+    return element
+
+def find_elements(driver: WebDriver, selector: str, by: str = By.XPATH, timeout: int = 10) -> list:
+    """Wait for at least one element to be present, then return all matching elements."""
+    logger.info(f"Finding elements: {selector}")
+    WebDriverWait(driver, timeout).until(
+        EC.presence_of_element_located((by, selector))
+    )
+    elements = driver.find_elements(by, selector)
+    logger.info(f"Found {len(elements)} element(s): {selector}")
+    return elements
+
+
+def type_into_date_element(driver: WebDriver, selector: str, value, by: str = By.XPATH, timeout: int = 10):
+    """Wait for an element to be clickable, clear it, and type a value into it."""
+    element=type_into_element(driver, selector,value,by, timeout)
+    element.send_keys(Keys.TAB)  # TAB
     return element

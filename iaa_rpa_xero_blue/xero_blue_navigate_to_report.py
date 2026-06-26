@@ -18,7 +18,7 @@ logger = setup_logger(__name__)
     """
 
 
-def xero_blue_navigate_report(
+def xero_blue_navigate_to_report(
     browser,
     xero_blue_report_name: str,
     xero_blue_title: str="",
@@ -180,8 +180,10 @@ def locate_and_click_report_button(driver, report_name: str) -> bool:
         bool: True if the report button was found and clicked successfully, False otherwise.
     """
     report_button_xpath = (
+        # f"//div[@id='report-centre-parent']"
+        # f"//span[normalize-space(text())='{report_name}']"
         f"//div[@id='report-centre-parent']"
-        f"//span[normalize-space(text())='{report_name}']"
+        f"//a[.//span[@data-automationid='report-name'][normalize-space(text())='{report_name}']]"
     )
     logger.info(f"Locating report button for report: '{report_name}'")
     logger.info(f"Using XPath: {report_button_xpath}")
