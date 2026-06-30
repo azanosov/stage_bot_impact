@@ -17,54 +17,54 @@ from iaa_rpa_utils.logger import get_logger, ProcessLogger
 from iaa_rpa_utils.browser import SeleniumBrowser
 from iaa_rpa_utils.credentials import get_credential
 #from RPA_process.Client.Impact.process import xero_login
-from iaa_rpa_xero_blue.xero_login import xero_blue_login
-from iaa_rpa_xero_blue.xero_blue_download_bank_reconciliation_report import xero_blue_download_bank_reconciliation_report
-from iaa_rpa_xero_blue.xero_blue_navigate_to_reports_dashboard import xero_blue_navigate_to_reports_dashboard
-from iaa_rpa_xero_blue.xero_blue_navigate_to_report import xero_blue_navigate_to_report
-from iaa_rpa_xero_blue.add_ons.xero_blue_get_bank_reconciliation_accounts import get_bank_reconciliation_accounts
-from iaa_rpa_xero_blue.add_ons.xero_navigate_to_report_wrapper import navigate_to_xero_report_wrapper
-from iaa_rpa_xero_blue.xero_blue_downlaod_aged_payables_detail_report import xero_blue_download_aged_payables_details_report
-from iaa_rpa_xero_blue.xero_blue_download_aged_receivables_detail_report import xero_blue_download_aged_receivables_detail_report
-from iaa_rpa_xero_blue.xero_blue_download_gst_reconciliation_report import xero_blue_download_gst_reconciliation_report
-from iaa_rpa_xero_blue.xero_blue_download_general_ledger_detail_report import xero_blue_download_general_ledger_details_report
-from iaa_rpa_xero_blue.xero_blue_download_trial_balance_report import xero_blue_download_trial_balance_report
-from iaa_rpa_xero_blue.xero_blue_download_activity_statement_report import xero_blue_download_activity_statement_report
-from iaa_rpa_xero_blue.add_ons.download_activity_statement_report import (
+from iaa_rpa_xb.xero_login import xero_blue_login
+# from iaa_rpa_xero_blue.xero_blue_download_bank_reconciliation_report import xero_blue_download_bank_reconciliation_report
+from iaa_rpa_xb.xero_blue_navigate_to_reports_dashboard import xero_blue_navigate_to_reports_dashboard
+from iaa_rpa_xb.xero_blue_navigate_to_report import xero_blue_navigate_to_report
+# from iaa_rpa_xero_blue.add_ons.xero_blue_get_bank_reconciliation_accounts import get_bank_reconciliation_accounts
+from iaa_rpa_xb.add_ons.xero_navigate_to_report_wrapper import navigate_to_xero_report_wrapper
+# from iaa_rpa_xero_blue.xero_blue_downlaod_aged_payables_detail_report import xero_blue_download_aged_payables_details_report
+# from iaa_rpa_xero_blue.xero_blue_download_aged_receivables_detail_report import xero_blue_download_aged_receivables_detail_report
+# from iaa_rpa_xero_blue.xero_blue_download_gst_reconciliation_report import xero_blue_download_gst_reconciliation_report
+# from iaa_rpa_xero_blue.xero_blue_download_general_ledger_detail_report import xero_blue_download_general_ledger_details_report
+# from iaa_rpa_xero_blue.xero_blue_download_trial_balance_report import xero_blue_download_trial_balance_report
+# from iaa_rpa_xero_blue.xero_blue_download_activity_statement_report import xero_blue_download_activity_statement_report
+from iaa_rpa_xero_blue.download_activity_statement import (
         StatementPeriod,
         ActivityStatementRequest,
         download_activity_statement_report,
     )
 #from iaa_rpa_xero_blue.xero_blue_switch_client import xero_blue_switch_client
-from iaa_rpa_xero_blue.add_ons.switch_client import xero_blue_switch_client
-from iaa_rpa_xero_blue.v2.xero_report_modules.download_trial_balance import (
+#from iaa_rpa_xero_blue.add_ons.switch_client import xero_blue_switch_client
+from iaa_rpa_xero_blue.download_trial_balance import (
         TrialBalanceRequest,
         download_trial_balance_report,
     )
-from iaa_rpa_xero_blue.v2.xero_report_modules.download_gst_reconciliation import (
+from iaa_rpa_xero_blue.download_gst_reconciliation import (
     GstReconciliationRequest,
     download_gst_reconciliation_report,
 )
-from iaa_rpa_xero_blue.v2.xero_report_modules.download_general_ledger_detail import (
+from iaa_rpa_xero_blue.download_general_ledger_detail import (
     GeneralLedgerDetailRequest,
     download_general_ledger_detail_report,
 )
 
-from iaa_rpa_xero_blue.v2.xero_report_modules.download_bank_reconciliation import (
+from iaa_rpa_xero_blue.download_bank_reconciliation import (
     BankReconciliationRequest,
     list_all_bank_accounts,
     download_bank_reconciliation_report,
 )
 
-from iaa_rpa_xero_blue.v2.xero_report_modules.download_aged_payables_detail import (
+from iaa_rpa_xero_blue.download_aged_payables_detail import (
     AgedPayablesRequest,
     download_aged_payables_detail_report,
 )
-from iaa_rpa_xero_blue.v2.xero_report_modules.download_aged_receivables_detail import (
+from iaa_rpa_xero_blue.download_aged_receivables_detail import (
     AgedReceivablesRequest,
     download_aged_receivables_detail_report
 )
 
-from iaa_rpa_xero_blue.v2.xero_report_modules.download_activity_statement import (
+from iaa_rpa_xero_blue.download_activity_statement import (
     ActivityStatementRequest,
     StatementPeriod,
     download_activity_statement_report,
@@ -86,32 +86,32 @@ def impact_main() -> None:
     
 
     reports_to_process = [
-        # ---- Activity Statement ------------------------------------------------
         {"name": "Activity Statement", "fn": download_activity_statement_report, "request": ActivityStatementRequest(
             period=StatementPeriod("September", 2025),   # StatementPeriod, not a tuple
             download_directory=DOWNDIR,
             report_file_name="Activity Statement",
         ), "args": None},
-    
-        # ---- Aged Receivables Detail  ("Due Date" - capital D) -----------------
+
+        # ---- Aged Receivables Detail  ("Due Date" / "Invoice Date") ------------
         {"name": "Aged Receivables Detail", "fn": download_aged_receivables_detail_report, "request": AgedReceivablesRequest(
             financial_year=FY,
             aging_by="Due Date",
             download_directory=DOWNDIR,
             report_file_name="Aged Receivables Detail",
-            # end_date="15 May 2025",   # optional STRING; "" -> 30 Jun {FY}
+            # end_date=date(2025, 5, 15),   # optional datetime.date; omit to use 30 Jun {FY}
             # add_gst_column=True,
         ), "args": None},
-    
-        # ---- Aged Payables Detail  ("Due date" - lowercase d) ------------------
+
+        # ---- Aged Payables Detail  ("Due Date" / "Invoice Date") ---------------
         {"name": "Aged Payables Detail", "fn": download_aged_payables_detail_report, "request": AgedPayablesRequest(
             financial_year=FY,
-            aging_by="Due date",
+            aging_by="Due Date",
             download_directory=DOWNDIR,
             report_file_name="Aged Payables Detail",
-            # end_date="15 May 2025",   # optional STRING; "" -> 30 Jun {FY}
+            # end_date=date(2025, 5, 15),   # optional datetime.date; omit to use 30 Jun {FY}
+            # add_gst_column=True,
         ), "args": None},
-    
+
         # ---- General Ledger Detail  (datetime.date; accounting_method) ---------
         {"name": "General Ledger Detail", "fn": download_general_ledger_detail_report, "request": GeneralLedgerDetailRequest(
             download_directory=DOWNDIR,
@@ -119,19 +119,18 @@ def impact_main() -> None:
             start_date=date(2024, 7, 1),
             end_date=date(2025, 6, 30),
             # financial_year=FY,        # alternative to start/end; either date can fall back to FY
-            accounting_method="cash",   # "cash" (default) or "accrual"
+            accounting_method="Cash",   # "Cash" (default) or "Accrual"
         ), "args": None},
-    
+
         # ---- Trial Balance  ("as at" end_date only) ----------------------------
         {"name": "Trial Balance", "fn": download_trial_balance_report, "request": TrialBalanceRequest(
             download_directory=DOWNDIR,
             report_file_name="Trial Balance",
             end_date=date(2025, 6, 30),
             # financial_year=FY,        # alternative to end_date
-            accounting_method="cash",
-            # add_gst_column=True,
+            accounting_method="Cash",   # "Cash" (default) or "Accrual"
         ), "args": None},
-    
+
         # ---- GST Reconciliation  (datetime.date; excel -> .xls, or pdf) --------
         {"name": "GST Reconciliation", "fn": download_gst_reconciliation_report, "request": GstReconciliationRequest(
             download_directory=DOWNDIR,
@@ -141,19 +140,8 @@ def impact_main() -> None:
             # financial_year=FY,
             # export_format="pdf",      # "excel" (default, saves .xls) or "pdf"
         ), "args": None},
-    
-        # # ---- Bank Reconciliation -----------------------------------------------
-        # # Single named account: set bank_account, leave args=None.
-        # {"name": "Bank Reconciliation", "fn": download_bank_reconciliation_report, "request": BankReconciliationRequest(
-        #     bank_account="1-0100 - Impact Operating Account",   # full label from the dropdown
-        #     download_directory=DOWNDIR,
-        #     report_file_name="Bank Reconciliation",
-        #     start_date=date(2024, 7, 1),
-        #     end_date=date(2025, 6, 30),
-        #     # financial_year=FY,
-        #     # export_format="pdf",      # "excel" (.xlsx, default) or "pdf"
-        # ), "args": None},
-    
+
+        # ---- Bank Reconciliation -----------------------------------------------
         # ALL accounts: bank_account is a placeholder (the runner overrides it per
         # account); args="all" tells the runner to enumerate and loop.
         {"name": "Bank Reconciliation", "fn": download_bank_reconciliation_report, "request": BankReconciliationRequest(
@@ -164,6 +152,7 @@ def impact_main() -> None:
             end_date=date(2025, 6, 30),
         ), "args": "all"},
         # Or specific accounts:  "args": ["1-0100 - Impact Operating Account", "1-1000 - Cheque account"]
+
     ]
 
 #TODO: code below
