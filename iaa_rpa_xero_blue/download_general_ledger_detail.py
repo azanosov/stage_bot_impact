@@ -56,8 +56,10 @@ from typing import Literal, get_args
 from iaa_rpa_utils import ProcessLogger, setup_logger
 from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog
 
-import common
-import config
+from iaa_rpa_utils.exceptions import DataExtractionError, DataValidationError
+
+from . import common
+from . import config
 
 
 logger = setup_logger(__name__)
@@ -110,28 +112,35 @@ class GeneralLedgerDetailRequest:
     accounting_method: AccountingMethod = "Cash"
     export_format: ExportFormat = "excel"
     window_title: str = "General Ledger Detail"
+    capture_screenshots: bool = True
+    screenshot_path: str | None = None
 
     def __post_init__(self) -> None:
         common.validate_non_empty_str(self.download_directory, "download_directory")
         common.validate_non_empty_str(self.report_file_name, "report_file_name")
 
         if self.accounting_method not in get_args(AccountingMethod):
-            raise ValueError(
+            raise DataValidationError(
                 f"accounting_method must be one of {get_args(AccountingMethod)}, "
                 f"got {self.accounting_method!r}"
             )
         if self.export_format not in get_args(ExportFormat):
-            raise ValueError(
+            raise DataValidationError(
                 f"export_format must be one of {get_args(ExportFormat)}, got {self.export_format!r}"
             )
 
         common.validate_optional_date(self.start_date, "start_date")
         common.validate_optional_date(self.end_date, "end_date")
         if (self.start_date is None or self.end_date is None) and self.financial_year is None:
-            raise ValueError("financial_year is required when start_date or end_date is omitted")
+            raise DataValidationError("financial_year is required when start_date or end_date is omitted")
         if self.financial_year is not None:
             common.validate_financial_year(self.financial_year)
         common.validate_date_order(self.start_date, self.end_date)
+
+        if self.capture_screenshots and not (self.screenshot_path or "").strip():
+            raise DataValidationError(
+                "screenshot_path is required when capture_screenshots is True"
+            )
 
     @property
     def resolved_start_date(self) -> str:
@@ -172,6 +181,8 @@ class GeneralLedgerDetailRequest:
             "Download Directory": self.download_directory,
             "Report File Name": self.report_file_name,
             "Window Title": self.window_title,
+            "Capture Screenshots": self.capture_screenshots,
+            "Screenshot Path": self.screenshot_path if self.capture_screenshots else "(disabled)",
         }
         width = max(map(len, rows))
         return [f"{label:<{width}} : {value}" for label, value in rows.items()]
@@ -226,6 +237,11 @@ def configure_accounting_basis(browser, request: GeneralLedgerDetailRequest) -> 
 def update_and_export_report(browser, request: GeneralLedgerDetailRequest) -> None:
     """Update the report, confirm it has data, export to the chosen format, and
     verify the saved file."""
+    common.capture_report_screenshot(
+        browser, request.screenshot_path, "general_ledger_detail", "before_update",
+        enabled=request.capture_screenshots,
+    )
+
     logger.info("Clicking 'Update' to generate the report...")
     browser.click_element(config.SH_UPDATE_BUTTON, timeout=common.EXPORT_TIMEOUT)
 
@@ -235,10 +251,15 @@ def update_and_export_report(browser, request: GeneralLedgerDetailRequest) -> No
     # rather than save nothing). Remove if GL is found to behave differently.
     if not browser.does_page_contain_element(config.SH_EXPORT_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
         logger.warning("Export button not found - no General Ledger data available for this client")
-        raise RuntimeError("No General Ledger Detail data available for this client.")
+        raise DataExtractionError("No General Ledger Detail data available for this client.")
     logger.info("'Export' button present - report contains data")
 
     logger.info(f"Exporting as '{request.export_format}' (saved as '{request.saved_extension}')...")
+    common.capture_report_screenshot(
+        browser, request.screenshot_path, "general_ledger_detail", "after_update",
+        enabled=request.capture_screenshots,
+    )
+
     browser.click_element(config.SH_EXPORT_BUTTON, timeout=common.EXPORT_TIMEOUT)
     common.click_pickitem_by_id(browser, request.export_menu_id, timeout=common.EXPORT_TIMEOUT)
 

@@ -54,8 +54,10 @@ from typing import Literal, get_args
 from iaa_rpa_utils import ProcessLogger, setup_logger
 from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog
 
-import common
-import config
+from iaa_rpa_utils.exceptions import DataExtractionError, DataValidationError
+
+from . import common
+from . import config
 
 
 logger = setup_logger(__name__)
@@ -101,23 +103,30 @@ class GstReconciliationRequest:
     financial_year: int | None = None
     export_format: ExportFormat = "excel"
     window_title: str = "GST Reconciliation"
+    capture_screenshots: bool = True
+    screenshot_path: str | None = None
 
     def __post_init__(self) -> None:
         common.validate_non_empty_str(self.download_directory, "download_directory")
         common.validate_non_empty_str(self.report_file_name, "report_file_name")
 
         if self.export_format not in get_args(ExportFormat):
-            raise ValueError(
+            raise DataValidationError(
                 f"export_format must be one of {get_args(ExportFormat)}, got {self.export_format!r}"
             )
 
         common.validate_optional_date(self.start_date, "start_date")
         common.validate_optional_date(self.end_date, "end_date")
         if (self.start_date is None or self.end_date is None) and self.financial_year is None:
-            raise ValueError("financial_year is required when start_date or end_date is omitted")
+            raise DataValidationError("financial_year is required when start_date or end_date is omitted")
         if self.financial_year is not None:
             common.validate_financial_year(self.financial_year)
         common.validate_date_order(self.start_date, self.end_date)
+
+        if self.capture_screenshots and not (self.screenshot_path or "").strip():
+            raise DataValidationError(
+                "screenshot_path is required when capture_screenshots is True"
+            )
 
     @property
     def resolved_start_date(self) -> str:
@@ -151,6 +160,8 @@ class GstReconciliationRequest:
             "Download Directory": self.download_directory,
             "Report File Name": self.report_file_name,
             "Window Title": self.window_title,
+            "Capture Screenshots": self.capture_screenshots,
+            "Screenshot Path": self.screenshot_path if self.capture_screenshots else "(disabled)",
         }
         width = max(map(len, rows))
         return [f"{label:<{width}} : {value}" for label, value in rows.items()]
@@ -195,6 +206,12 @@ def update_and_export_report(browser, request: GstReconciliationRequest) -> None
     has data, export to the chosen format, save, and verify the file."""
     timeout = common.DEFAULT_ELEMENT_TIMEOUT
 
+    # Dates are entered: capture the configured report before Update.
+    common.capture_report_screenshot(
+        browser, request.screenshot_path, "gst_reconciliation", "before_update",
+        enabled=request.capture_screenshots,
+    )
+
     # --- Click 'Update' (default variant, falling back to legacy) ---
     if browser.does_page_contain_element(config.GSTR_UPDATE_DEFAULT, timeout=timeout):
         browser.click_element(config.GSTR_UPDATE_DEFAULT, timeout=common.EXPORT_TIMEOUT)
@@ -209,8 +226,14 @@ def update_and_export_report(browser, request: GstReconciliationRequest) -> None
         export_locator = config.GSTR_EXPORT_LEGACY
     else:
         logger.warning("Export button not found - no report data available for this client")
-        raise RuntimeError("No GST Reconciliation data available for this client.")
+        raise DataExtractionError("No GST Reconciliation data available for this client.")
     logger.info("'Export' control located")
+
+    # Report has rendered with data: capture the result before exporting.
+    common.capture_report_screenshot(
+        browser, request.screenshot_path, "gst_reconciliation", "after_update",
+        enabled=request.capture_screenshots,
+    )
 
     # --- Open the Export menu and click the chosen format link ---
     default_format, legacy_format, _ = _EXPORT_FORMATS[request.export_format]

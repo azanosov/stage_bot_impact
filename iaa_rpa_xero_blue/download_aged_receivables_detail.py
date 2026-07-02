@@ -53,8 +53,10 @@ from typing import Literal, get_args
 from iaa_rpa_utils import ProcessLogger, setup_logger
 from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog
 
-import common
-import config
+from iaa_rpa_utils.exceptions import DataExtractionError, DataValidationError
+
+from . import common
+from . import config
 
 
 logger = setup_logger(__name__)
@@ -107,25 +109,32 @@ class AgedReceivablesRequest:
     add_gst_column: bool = False
     export_format: ExportFormat = "excel"
     window_title: str = "Aged Receivables Detail"
+    capture_screenshots: bool = True
+    screenshot_path: str | None = None
 
     def __post_init__(self) -> None:
         common.validate_non_empty_str(self.download_directory, "download_directory")
         common.validate_non_empty_str(self.report_file_name, "report_file_name")
 
         if self.aging_by not in get_args(AgingMethod):
-            raise ValueError(f"aging_by must be one of {get_args(AgingMethod)}, got {self.aging_by!r}")
+            raise DataValidationError(f"aging_by must be one of {get_args(AgingMethod)}, got {self.aging_by!r}")
         if self.export_format not in get_args(ExportFormat):
-            raise ValueError(
+            raise DataValidationError(
                 f"export_format must be one of {get_args(ExportFormat)}, got {self.export_format!r}"
             )
         if not isinstance(self.add_gst_column, bool):
-            raise TypeError(f"add_gst_column must be a bool, got {type(self.add_gst_column).__name__}")
+            raise DataValidationError(f"add_gst_column must be a bool, got {type(self.add_gst_column).__name__}")
 
         common.validate_optional_date(self.end_date, "end_date")
         if self.end_date is None and self.financial_year is None:
-            raise ValueError("financial_year is required when end_date is omitted")
+            raise DataValidationError("financial_year is required when end_date is omitted")
         if self.financial_year is not None:
             common.validate_financial_year(self.financial_year)
+
+        if self.capture_screenshots and not (self.screenshot_path or "").strip():
+            raise DataValidationError(
+                "screenshot_path is required when capture_screenshots is True"
+            )
 
     @property
     def resolved_end_date(self) -> str:
@@ -161,6 +170,8 @@ class AgedReceivablesRequest:
             "Download Directory": self.download_directory,
             "Report File Name": self.report_file_name,
             "Window Title": self.window_title,
+            "Capture Screenshots": self.capture_screenshots,
+            "Screenshot Path": self.screenshot_path if self.capture_screenshots else "(disabled)",
         }
         width = max(map(len, rows))
         return [f"{label:<{width}} : {value}" for label, value in rows.items()]
@@ -238,15 +249,25 @@ def configure_gst_column(browser, request: AgedReceivablesRequest) -> None:
 
 def update_and_export_report(browser, request: AgedReceivablesRequest) -> None:
     """Update the report, confirm it has data, export, and verify the saved file."""
+    common.capture_report_screenshot(
+        browser, request.screenshot_path, "aged_receivables_detail", "before_update",
+        enabled=request.capture_screenshots,
+    )
+
     logger.info("Clicking 'Update' to generate the report...")
     browser.click_element(config.SH_UPDATE_BUTTON, timeout=common.EXPORT_TIMEOUT)
 
     if not browser.does_page_contain_element(config.SH_EXPORT_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
         logger.warning("Export button not found - no Aged Receivables data available for this client")
-        raise RuntimeError("No Aged Receivables Detail data available for this client.")
+        raise DataExtractionError("No Aged Receivables Detail data available for this client.")
     logger.info("'Export' button present - report contains data")
 
     logger.info(f"Exporting as '{request.export_format}' (saved as '{request.saved_extension}')...")
+    common.capture_report_screenshot(
+        browser, request.screenshot_path, "aged_receivables_detail", "after_update",
+        enabled=request.capture_screenshots,
+    )
+
     browser.click_element(config.SH_EXPORT_BUTTON, timeout=common.EXPORT_TIMEOUT)
     common.click_pickitem_by_id(browser, request.export_menu_id, timeout=common.EXPORT_TIMEOUT)
 

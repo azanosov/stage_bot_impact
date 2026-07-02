@@ -2,8 +2,9 @@
 Module for downloading Trial Balance reports from Xero Blue.
 
 Configures and downloads a Trial Balance report: selects the accounting basis
-(Cash or Accrual), enters the report end date, generates the report (with an
-audit screenshot), exports it to Excel, and confirms the file was saved.
+(Cash or Accrual), enters the report end date, generates the report (with
+before/after-update audit screenshots), exports it to Excel, and confirms the
+file was saved.
 
 Drives the page through the SeleniumBrowser wrapper. Locators live in config.py;
 shared behaviour (date formatting, validation, pick-list and input primitives,
@@ -13,6 +14,12 @@ This module composes those.
 Inputs are modelled as a dataclass:
     TrialBalanceRequest - everything one download needs. The live browser/engine
                           is passed separately to the download function.
+
+Audit screenshots:
+    Two full-page screenshots are taken when ``capture_screenshots`` is True
+    (the default): one after all selections are made (before Update) and one
+    after the report has rendered with data (before Export). They land in
+    ``screenshot_path``, which is therefore required when capture is on.
 
 Period:
     The Trial Balance is an "as at" report - only an end date. `end_date` is the
@@ -40,8 +47,9 @@ How to call:
     download_trial_balance_report(browser, request)
 
 Failure behaviour:
-    Errors are logged (by ``ProcessLogger``) and RE-RAISED. A client with no
-    report data raises a clear RuntimeError, as does a file that fails to save.
+    Errors are logged (by ``ProcessLogger``) and RE-RAISED. Invalid inputs raise
+    ``DataValidationError``; a client with no report data raises
+    ``DataExtractionError``; a file that fails to save raises ``DownloadError``.
 """
 
 from __future__ import annotations
@@ -51,10 +59,11 @@ from datetime import date
 from typing import Literal, get_args
 
 from iaa_rpa_utils import ProcessLogger, setup_logger
+from iaa_rpa_utils.exceptions import DataExtractionError, DataValidationError
 from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog
 
-import common
-import config
+from . import common
+from . import config
 
 
 logger = setup_logger(__name__)
@@ -101,6 +110,10 @@ class TrialBalanceRequest:
         accounting_method:  "Cash" (default) or "Accrual". Always set.
         export_format:      "excel" (default, .xlsx) or "pdf" (.pdf).
         window_title:       Title used to locate the Chrome Save As window.
+        capture_screenshots: When True (default), take before/after-update audit
+                            screenshots. Requires screenshot_path.
+        screenshot_path:    Folder the audit screenshots are written to. Required
+                            when capture_screenshots is True.
     """
 
     download_directory: str
@@ -110,26 +123,33 @@ class TrialBalanceRequest:
     accounting_method: AccountingMethod = "Cash"
     export_format: ExportFormat = "excel"
     window_title: str = "Trial Balance"
+    capture_screenshots: bool = True
+    screenshot_path: str | None = None
 
     def __post_init__(self) -> None:
         common.validate_non_empty_str(self.download_directory, "download_directory")
         common.validate_non_empty_str(self.report_file_name, "report_file_name")
 
         if self.accounting_method not in get_args(AccountingMethod):
-            raise ValueError(
+            raise DataValidationError(
                 f"accounting_method must be one of {get_args(AccountingMethod)}, "
                 f"got {self.accounting_method!r}"
             )
         if self.export_format not in get_args(ExportFormat):
-            raise ValueError(
+            raise DataValidationError(
                 f"export_format must be one of {get_args(ExportFormat)}, got {self.export_format!r}"
             )
 
         common.validate_optional_date(self.end_date, "end_date")
         if self.end_date is None and self.financial_year is None:
-            raise ValueError("financial_year is required when end_date is omitted")
+            raise DataValidationError("financial_year is required when end_date is omitted")
         if self.financial_year is not None:
             common.validate_financial_year(self.financial_year)
+
+        if self.capture_screenshots and not (self.screenshot_path or "").strip():
+            raise DataValidationError(
+                "screenshot_path is required when capture_screenshots is True"
+            )
 
     @property
     def resolved_end_date(self) -> str:
@@ -174,6 +194,8 @@ class TrialBalanceRequest:
             "Download Directory": self.download_directory,
             "Report File Name": self.report_file_name,
             "Window Title": self.window_title,
+            "Capture Screenshots": self.capture_screenshots,
+            "Screenshot Path": self.screenshot_path if self.capture_screenshots else "(disabled)",
         }
         width = max(map(len, rows))
         return [f"{label:<{width}} : {value}" for label, value in rows.items()]
@@ -193,8 +215,9 @@ def download_trial_balance_report(browser, request: TrialBalanceRequest) -> None
         request (TrialBalanceRequest): All configuration for the download.
 
     Raises:
-        Re-raises any exception after ``ProcessLogger`` has logged it. No report
-        data, or a file that fails to save, raises ``RuntimeError``.
+        Re-raises any exception after ``ProcessLogger`` has logged it. Invalid
+        inputs raise ``DataValidationError``; no report data raises
+        ``DataExtractionError``; a file that fails to save raises ``DownloadError``.
     """
     with ProcessLogger("Xero Blue Download Trial Balance Report", logger):
         for line in request.summary_lines():
@@ -229,8 +252,14 @@ def configure_report_date(browser, request: TrialBalanceRequest) -> None:
 
 
 def generate_and_export_report(browser, request: TrialBalanceRequest) -> None:
-    """Update the report, screenshot it, confirm it has data, export it, and
-    verify the saved file."""
+    """Screenshot the configured report, update it, confirm it has data,
+    screenshot the rendered result, export it, and verify the saved file."""
+    # All selections are done: capture the configured report before Update.
+    common.capture_report_screenshot(
+        browser, request.screenshot_path, "trial_balance", "before_update",
+        enabled=request.capture_screenshots,
+    )
+
     logger.info("Clicking 'Update' to generate the report...")
     browser.click_element(config.SH_UPDATE_BUTTON, timeout=common.EXPORT_TIMEOUT)
 
@@ -240,13 +269,17 @@ def generate_and_export_report(browser, request: TrialBalanceRequest) -> None:
     else:
         logger.warning("Report title not visible within timeout - proceeding to data check")
 
-    common.capture_audit_screenshot(browser)
-
     # No Export button means the client has no report data.
     if not browser.does_page_contain_element(config.SH_EXPORT_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
         logger.warning("Export button not found - no Trial Balance data available for this client")
-        raise RuntimeError("No Trial Balance data available for this client.")
+        raise DataExtractionError("No Trial Balance data available for this client.")
     logger.info("'Export' button located - report contains data")
+
+    # Report has rendered with data: capture the result before exporting.
+    common.capture_report_screenshot(
+        browser, request.screenshot_path, "trial_balance", "after_update",
+        enabled=request.capture_screenshots,
+    )
 
     logger.info("Opening export menu and selecting format...")
     browser.click_element(config.SH_EXPORT_BUTTON, timeout=common.EXPORT_TIMEOUT)

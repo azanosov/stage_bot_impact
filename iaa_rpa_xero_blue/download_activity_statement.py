@@ -46,8 +46,10 @@ from typing import Literal, get_args
 from iaa_rpa_utils import ProcessLogger, setup_logger
 from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog
 
-import common
-import config
+from iaa_rpa_utils.exceptions import DataExtractionError, DataValidationError
+
+from . import common
+from . import config
 
 
 logger = setup_logger(__name__)
@@ -93,13 +95,13 @@ class StatementPeriod:
 
     def __post_init__(self) -> None:
         if self.month not in get_args(Month):
-            raise ValueError(f"month must be one of {get_args(Month)}, got {self.month!r}")
+            raise DataValidationError(f"month must be one of {get_args(Month)}, got {self.month!r}")
         # year is typed int but not enforced at runtime; guard it. bool is an int subclass.
         if not isinstance(self.year, int) or isinstance(self.year, bool):
-            raise TypeError(f"year must be an int, got {type(self.year).__name__}")
+            raise DataValidationError(f"year must be an int, got {type(self.year).__name__}")
         max_year = datetime.now().year + 2
         if not _MIN_STATEMENT_YEAR <= self.year <= max_year:
-            raise ValueError(f"year must be between {_MIN_STATEMENT_YEAR} and {max_year}, got {self.year}")
+            raise DataValidationError(f"year must be between {_MIN_STATEMENT_YEAR} and {max_year}, got {self.year}")
 
     def __str__(self) -> str:
         return f"{self.month} {self.year}"   # e.g. "September 2024"
@@ -136,15 +138,22 @@ class ActivityStatementRequest:
     report_file_name: str
     export_format: ExportFormat = "excel"
     window_title: str = "Activity Statement"
+    capture_screenshots: bool = True
+    screenshot_path: str | None = None
 
     def __post_init__(self) -> None:
         common.validate_non_empty_str(self.download_directory, "download_directory")
         common.validate_non_empty_str(self.report_file_name, "report_file_name")
         if not isinstance(self.period, StatementPeriod):
-            raise TypeError(f"period must be a StatementPeriod, got {type(self.period).__name__}")
+            raise DataValidationError(f"period must be a StatementPeriod, got {type(self.period).__name__}")
         if self.export_format not in get_args(ExportFormat):
-            raise ValueError(
+            raise DataValidationError(
                 f"export_format must be one of {get_args(ExportFormat)}, got {self.export_format!r}"
+            )
+
+        if self.capture_screenshots and not (self.screenshot_path or "").strip():
+            raise DataValidationError(
+                "screenshot_path is required when capture_screenshots is True"
             )
 
     @property
@@ -170,6 +179,8 @@ class ActivityStatementRequest:
             "Download Directory": self.download_directory,
             "Report File Name": self.report_file_name,
             "Window Title": self.window_title,
+            "Capture Screenshots": self.capture_screenshots,
+            "Screenshot Path": self.screenshot_path if self.capture_screenshots else "(disabled)",
         }
         width = max(map(len, rows))
         return [f"{label:<{width}} : {value}" for label, value in rows.items()]
@@ -185,9 +196,10 @@ def download_activity_statement_report(browser, request: ActivityStatementReques
         STEP 3 - export to the chosen format, and verify the saved file
 
     Raises:
-        Re-raises any exception after ``ProcessLogger`` has logged it. A failure
-        selecting the period is wrapped in RuntimeError; a missing Export control
-        or a file that fails to save also raises RuntimeError.
+        Re-raises any exception after ``ProcessLogger`` has logged it. Invalid
+        inputs raise ``DataValidationError``; a period/control that cannot be
+        found raises ``ElementNotFoundError``; a missing Export control raises
+        ``DataExtractionError``; a file that fails to save raises ``DownloadError``.
     """
     with ProcessLogger("Xero Blue Download Activity Statement Report", logger):
         for line in request.summary_lines():
@@ -201,10 +213,7 @@ def download_activity_statement_report(browser, request: ActivityStatementReques
             f"STEP 2: Selecting statement period '{request.period}' "
             f"(financial year '{request.period.fiscal_year_label}')..."
         )
-        try:
-            select_statement_period(browser, request)
-        except Exception as e:
-            raise RuntimeError(f"Failed selecting period {request.period}") from e
+        select_statement_period(browser, request)
         logger.info("STEP 2 COMPLETED: statement period selected")
 
         logger.info(f"STEP 3: Exporting report as '{request.export_format}'...")
@@ -262,8 +271,16 @@ def select_statement_period(browser, request: ActivityStatementRequest) -> None:
 
 def run_report_export(browser, request: ActivityStatementRequest) -> None:
     """Open the export panel, pick the format radio, confirm, save, and verify."""
+    # The statement has rendered by now (period selected). Capture it before we
+    # touch the export panel. Best-effort: BAS has no stable render-confirmation
+    # element, so this is taken right after selection without a render gate.
+    common.capture_report_screenshot(
+        browser, request.screenshot_path, "activity_statement", "rendered",
+        enabled=request.capture_screenshots,
+    )
+
     if not browser.does_page_contain_element(config.ASR_EXPORT_DROPDOWN_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
-        raise RuntimeError("'Export' control not found - cannot export report")
+        raise DataExtractionError("'Export' control not found - cannot export report")
 
     logger.info("Opening the export panel...")
     browser.click_element(config.ASR_EXPORT_DROPDOWN_BUTTON, timeout=common.EXPORT_TIMEOUT)

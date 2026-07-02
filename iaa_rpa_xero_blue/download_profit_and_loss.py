@@ -61,8 +61,10 @@ from typing import Literal, get_args
 from iaa_rpa_utils import ProcessLogger, setup_logger
 from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog
 
-import common
-import config
+from iaa_rpa_utils.exceptions import DataExtractionError, DataValidationError
+
+from . import common
+from . import config
 
 
 logger = setup_logger(__name__)
@@ -133,14 +135,14 @@ class ComparisonPeriod:
 
     def __post_init__(self) -> None:
         if self.kind not in get_args(ComparisonKind):
-            raise ValueError(
+            raise DataValidationError(
                 f"comparison kind must be one of {get_args(ComparisonKind)}, got {self.kind!r}"
             )
         # bool is an int subclass; exclude it so True/False can't pose as a count.
         if not isinstance(self.count, int) or isinstance(self.count, bool):
-            raise TypeError(f"comparison count must be an int, got {type(self.count).__name__}")
+            raise DataValidationError(f"comparison count must be an int, got {type(self.count).__name__}")
         if self.count <= 0:
-            raise ValueError(
+            raise DataValidationError(
                 f"comparison count must be a positive int, got {self.count} "
                 "(use ComparisonPeriod.from_count, or comparison=None for no comparison)"
             )
@@ -185,41 +187,43 @@ class ProfitAndLossRequest:
     alternative_report_title: str | None = None
     export_format: ExportFormat = "excel"
     window_title: str = "Profit and Loss"
+    capture_screenshots: bool = True
+    screenshot_path: str | None = None
 
     def __post_init__(self) -> None:
         common.validate_non_empty_str(self.download_directory, "download_directory")
         common.validate_non_empty_str(self.report_file_name, "report_file_name")
 
         if self.accounting_basis not in get_args(AccountingBasis):
-            raise ValueError(
+            raise DataValidationError(
                 f"accounting_basis must be one of {get_args(AccountingBasis)}, "
                 f"got {self.accounting_basis!r}"
             )
         if self.export_format not in get_args(ExportFormat):
-            raise ValueError(
+            raise DataValidationError(
                 f"export_format must be one of {get_args(ExportFormat)}, got {self.export_format!r}"
             )
 
         common.validate_optional_date(self.start_date, "start_date")
         common.validate_optional_date(self.end_date, "end_date")
         if (self.start_date is None or self.end_date is None) and self.financial_year is None:
-            raise ValueError("financial_year is required when start_date or end_date is omitted")
+            raise DataValidationError("financial_year is required when start_date or end_date is omitted")
         if self.financial_year is not None:
             common.validate_financial_year(self.financial_year)
         common.validate_date_order(self.start_date, self.end_date)
 
         # comparison must be a ComparisonPeriod when provided (it self-validates).
         if self.comparison is not None and not isinstance(self.comparison, ComparisonPeriod):
-            raise TypeError(
+            raise DataValidationError(
                 f"comparison must be a ComparisonPeriod or None, got {type(self.comparison).__name__}"
             )
 
         # alternative_report_title, when given, must be a non-empty <=100 char string.
         if self.alternative_report_title is not None:
             if not isinstance(self.alternative_report_title, str) or not self.alternative_report_title.strip():
-                raise ValueError("alternative_report_title must be a non-empty string when provided")
+                raise DataValidationError("alternative_report_title must be a non-empty string when provided")
             if len(self.alternative_report_title) > _MAX_TITLE_LENGTH:
-                raise ValueError(
+                raise DataValidationError(
                     f"alternative_report_title must be <= {_MAX_TITLE_LENGTH} characters, "
                     f"got {len(self.alternative_report_title)}"
                 )
@@ -227,19 +231,24 @@ class ProfitAndLossRequest:
         # show_options: validate shape, and warn (do not fail) on unknown labels.
         if self.show_options is not None:
             if not isinstance(self.show_options, dict):
-                raise TypeError(
+                raise DataValidationError(
                     f"show_options must be a dict[str, bool] or None, got {type(self.show_options).__name__}"
                 )
             for key, value in self.show_options.items():
                 if not isinstance(key, str) or not key.strip():
-                    raise ValueError(f"show_options keys must be non-empty strings, got {key!r}")
+                    raise DataValidationError(f"show_options keys must be non-empty strings, got {key!r}")
                 if not isinstance(value, bool):
-                    raise TypeError(f"show_options['{key}'] must be a bool, got {type(value).__name__}")
+                    raise DataValidationError(f"show_options['{key}'] must be a bool, got {type(value).__name__}")
                 if key.strip().lower() not in _KNOWN_SHOW_OPTIONS:
                     logger.warning(
                         f"show_options contains an unrecognised label {key!r}; it will be "
                         "attempted but may not match any on-screen option."
                     )
+
+        if self.capture_screenshots and not (self.screenshot_path or "").strip():
+            raise DataValidationError(
+                "screenshot_path is required when capture_screenshots is True"
+            )
 
     @property
     def resolved_start_date(self) -> str:
@@ -286,6 +295,8 @@ class ProfitAndLossRequest:
             "Download Directory": self.download_directory,
             "Report File Name": self.report_file_name,
             "Window Title": self.window_title,
+            "Capture Screenshots": self.capture_screenshots,
+            "Screenshot Path": self.screenshot_path if self.capture_screenshots else "(disabled)",
         }
         width = max(map(len, rows))
         return [f"{label:<{width}} : {value}" for label, value in rows.items()]
@@ -414,7 +425,7 @@ def configure_comparison(browser, request: ProfitAndLossRequest) -> None:
     # Select the kind, failing if it is disabled for the chosen range.
     kind_id = _COMPARISON_KIND_IDS[comparison.kind]
     if common.pickitem_is_disabled(browser, kind_id, timeout):
-        raise RuntimeError(
+        raise DataValidationError(
             f"Comparison kind '{comparison.kind}' is unavailable for the selected date range."
         )
     common.click_pickitem_by_id(browser, kind_id, timeout)
@@ -437,6 +448,11 @@ def set_report_title(browser, request: ProfitAndLossRequest) -> None:
 def generate_and_export_report(browser, request: ProfitAndLossRequest) -> None:
     """Update the report, screenshot it, confirm it has data, export to the
     chosen format, and verify the saved file."""
+    common.capture_report_screenshot(
+        browser, request.screenshot_path, "profit_and_loss", "before_update",
+        enabled=request.capture_screenshots,
+    )
+
     logger.info("Clicking 'Update' to generate the report...")
     browser.click_element(config.SH_UPDATE_BUTTON, timeout=common.EXPORT_TIMEOUT)
 
@@ -446,14 +462,17 @@ def generate_and_export_report(browser, request: ProfitAndLossRequest) -> None:
     else:
         logger.warning("Report title not visible within timeout - proceeding to data check")
 
-    common.capture_audit_screenshot(browser)
-
     if not browser.does_page_contain_element(config.SH_EXPORT_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
         logger.warning("Export button not found - no Profit and Loss data available for this client")
-        raise RuntimeError("No Profit and Loss data available for this client.")
+        raise DataExtractionError("No Profit and Loss data available for this client.")
     logger.info("'Export' button located - report contains data")
 
     logger.info(f"Exporting as '{request.export_format}' (saved as '{request.saved_extension}')...")
+    common.capture_report_screenshot(
+        browser, request.screenshot_path, "profit_and_loss", "after_update",
+        enabled=request.capture_screenshots,
+    )
+
     browser.click_element(config.SH_EXPORT_BUTTON, timeout=common.EXPORT_TIMEOUT)
     common.click_pickitem_by_id(browser, request.export_menu_id, timeout=common.EXPORT_TIMEOUT)
     logger.info("Export triggered. Waiting for the Windows Save As dialog...")

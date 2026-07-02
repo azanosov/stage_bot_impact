@@ -117,7 +117,7 @@ AGED_AGEING_BY_BUTTON = (
 )
 
 # An "Ageing By" option's clickable body, keyed on its short option key.
-# {opt} is one of: "due", "invoice", "transaction" (transaction = receivables only).
+# {opt} is one of: "due", "invoice" (both aged reports offer only these two).
 AGED_AGEING_OPTION_TPL = (
     "xpath://*[@data-automationid='report-settings-ageingBy-select-list-option-{opt}--body']"
 )
@@ -125,6 +125,32 @@ AGED_AGEING_OPTION_TPL = (
 # The "Outstanding GST" column option in the Columns multi-select. Its id is
 # 'taxamountdue' (NOT 'gst'). Driven via the shared pick-item primitives.
 AGED_GST_COLUMN_ID = "column-selection-taxamountdue"
+
+# --- Ageing Periods modal (summary reports) ---------------------------------
+# "N periods of M {kind}". The first input is the period COUNT, the second the
+# period FREQUENCY/size; the kind (Month/Week/Day) is a pick-list. The modal's
+# checkbox and title-format radios are left at their defaults (out of scope).
+AGED_AGEING_PERIODS_TRIGGER = (
+    "xpath://button[@id='report-settings-ageing-periods-modal-trigger']"
+)
+AGED_AGEING_PERIODS_COUNT_INPUT = (
+    "xpath://input[@data-automationid='report-settings-ageing-periods-modal-periodCount--input']"
+)
+AGED_AGEING_PERIODS_FREQ_INPUT = (
+    "xpath://input[@data-automationid='report-settings-ageing-periods-modal-periodFrequency--input']"
+)
+AGED_AGEING_PERIODS_KIND_BUTTON = (
+    "xpath://button[@data-automationid='report-settings-ageing-periods-modal-periodKind-button']"
+)
+# {kind} is the visible label: Month / Week / Day. Options are the shared
+# pick-item bodies inside the modal dialog, matched by text.
+AGED_AGEING_PERIODS_KIND_OPTION_TPL = (
+    "xpath://section[@role='dialog']//button[contains(@class,'xui-pickitem--body')]"
+    "[.//span[normalize-space()='{kind}']]"
+)
+AGED_AGEING_PERIODS_APPLY_BUTTON = (
+    "xpath://button[@data-automationid='report-settings-ageing-periods-modal-apply-button']"
+)
 
 
 # ============================================================================
@@ -239,3 +265,197 @@ GSTR_FORMAT_EXCEL_DEFAULT = "xpath://button[@type='button']//span[normalize-spac
 GSTR_FORMAT_EXCEL_LEGACY = "xpath://a[contains(@onclick,'ExcelReport.aspx')]"
 GSTR_FORMAT_PDF_DEFAULT = "xpath://button[@type='button']//span[normalize-space(text())='PDF']"
 GSTR_FORMAT_PDF_LEGACY = "xpath://a[contains(@onclick,'PDFReport.aspx')]"
+
+
+# ============================================================================
+# ACCOUNT TRANSACTIONS  (ACCT_)
+# Date-range report with a MULTI-select accounts filter (distinct from bank
+# rec's single-select combobox). Same XUI autocompleter family - the open list
+# panel carries automationid 'Accounts-selector-autocompleter--list' (mirrors
+# bank rec's confirmed pattern). Each row exposes a stable
+# <li aria-label="{code} - {name}"> - the meaningful handle. The row's
+# data-automationid 'Accounts-selector-dropdown-item-{N}' is POSITIONAL and
+# renumbers as the list is filtered, so it is deliberately NOT used to target.
+# ============================================================================
+
+# Open button + search input (automation-ids).
+ACCT_SELECTOR_OPEN_BUTTON = "xpath://button[@data-automationid='Accounts-selector-input-open']"
+ACCT_SELECTOR_INPUT = "xpath://input[@data-automationid='Accounts-selector-autocompleter--input']"
+
+# Select all / Deselect all are ONE toggle button sharing a single automationid
+# ('Accounts-selector-dropdown-select-all--body'); only the inner text swaps
+# ("Select all" <-> "Deselect all"). So each state is distinguished by its text
+# on that shared body - the id alone can't tell which state is showing.
+ACCT_SELECT_ALL = (
+    "xpath://button[@data-automationid='Accounts-selector-dropdown-select-all--body']"
+    "[.//span[normalize-space()='Select all']]"
+)
+ACCT_DESELECT_ALL = (
+    "xpath://button[@data-automationid='Accounts-selector-dropdown-select-all--body']"
+    "[.//span[normalize-space()='Deselect all']]"
+)
+
+# One account row's clickable body, matched EXACTLY on its aria-label.
+# {label} must be an xpath string literal (build it with xpath_literal()).
+ACCT_ITEM_BODY_TPL = "xpath://li[@aria-label={label}]//button[contains(@class,'xui-pickitem--body')]"
+
+
+# ============================================================================
+# DOWNLOAD INVOICE  (INV_)
+# NOT a report - a record download from the Accounts Receivable invoice list
+# (legacy ExtJS surface) + the modern invoice detail page. The list is reached
+# by SEARCH (not by scraping/paging 3000+ rows): pick the "All" tab, type the
+# number, Search, then match the row by its ref cell. Navigation (Sales/Business
+# -> Invoices, and Home) is text-located and dual-UI - the caller invokes it.
+# ============================================================================
+
+# --- Navigation (text-located, dual UI; caller drives these) ---
+INV_NAV_SALES_BUTTON = "xpath://button[@type='button' and .//span[normalize-space(text())='Sales']]"          # new UI
+INV_NAV_INVOICES_LINK = "xpath://a[@role='link' and span[normalize-space(text())='Invoices']]"                 # new UI
+INV_NAV_BUSINESS_BUTTON = "xpath://button[normalize-space(text())='Business']"                                 # old UI
+INV_NAV_INVOICES_TAB = "xpath://a[normalize-space(text())='Invoices']"                                         # old UI
+INV_NAV_HOME_LINK = "xpath://span[@class='x-nav--nav-item-text' and normalize-space(text())='Home']"           # new UI (Business is old-UI fallback)
+
+# --- Invoice list: status tabs + search ---
+# "All" tab is the only status link whose href has no invoiceStatus query - the
+# unfiltered set. Searching within All guarantees the widest, deterministic set.
+INV_TAB_ALL = "xpath://ul[contains(@class,'group')]//a[normalize-space(text())='All']"
+INV_SEARCH_INPUT = "id:sb_txtReference"
+INV_SEARCH_BUTTON = "xpath://span[@data-automationid='Search-button']"
+
+# One invoice row's clickable contact link, matched EXACTLY on the invoice
+# number in that row's ref cell (position-independent - the link text is the
+# CONTACT, not the number, so we key off the ref <td>). {invoice} is an xpath
+# string literal (build with xpath_literal()).
+INV_ROW_LINK_BY_NUMBER_TPL = (
+    "xpath://tr[td[contains(@class,'ref')][normalize-space()={invoice}]]//a[contains(@class,'nav')]"
+)
+# The detail-page heading confirming the right invoice opened. {heading} is an
+# xpath string literal of the full "Invoice {number}" text (build with xpath_literal()).
+INV_DETAIL_HEADING_TPL = "xpath://h1[normalize-space(text())={heading}]"
+
+# --- Invoice detail page: Print PDF + Mark as Sent modal (automation-ids) ---
+INV_PRINT_PDF_BUTTON = "xpath://button[@data-automationid='PrintDropdown-print']"
+INV_MARK_AS_SENT_MODAL = "xpath://section[@data-automationid='MarkAsSentModal--header' or @id='MarkAsSentModal--header']"
+INV_MARK_AS_SENT_CANCEL = "xpath://button[@data-automationid='MarkAsSentModal--cancelButton']"
+
+
+# ============================================================================
+# LOGIN  (LOGIN_)
+# The session/auth entry point (not a download). Credentials + a pre-generated
+# OTP are passed IN by the caller - this surface never holds the TOTP secret and
+# never generates a code. Locators below are on stable ids/automation-ids; the
+# logged-in check is layered (new-UI dashboard <main>, then legacy Dashboard
+# text) so it survives across UI versions.
+# ============================================================================
+
+# --- Login form (stable ids) ---
+LOGIN_EMAIL_INPUT = "id:xl-form-email"
+LOGIN_PASSWORD_INPUT = "id:xl-form-password"
+LOGIN_SUBMIT_BUTTON = "id:xl-form-submit"
+
+# --- MFA step (automation-ids) ---
+LOGIN_MFA_OTP_INPUT = "xpath://input[@data-automationid='auth-onetimepassword--input']"
+LOGIN_MFA_CONFIRM_BUTTON = "xpath://button[@data-automationid='auth-submitcodebutton']"
+# Trust-device checkbox: a real <input type=checkbox>; read its checked state
+# before clicking so we never TOGGLE an already-trusted device off.
+LOGIN_TRUST_DEVICE_CHECKBOX = "xpath://input[@type='checkbox' and @data-automationid='auth-remembermecheckbox--input']"
+
+# --- Logged-in check (layered: new-UI <main> first, legacy Dashboard fallback) ---
+# Dashboard SPA container. Token-safe class match (the <main> may carry other
+# classes alongside this one), so we match the stable token, not an exact string.
+LOGIN_HOME_MAIN = "xpath://main[contains(concat(' ', normalize-space(@class), ' '), ' homepage-spa-SharedLayout--body ')]"
+# Legacy fallback (flagged: text-located, older UI).
+LOGIN_DASHBOARD_LINK = "xpath://a[normalize-space(.)='Dashboard']"
+
+
+# ============================================================================
+# NAVIGATION - dashboard / home  (NAV_)
+# Shared home-nav locators. Layered new-UI-first, legacy fallback.
+# ============================================================================
+# New-UI top-nav Home link.
+NAV_HOME_LINK = "xpath://a[@role='link' and span[normalize-space(text())='Home']]"
+# Dashboard SPA container - token-safe class match (the <main> may carry other
+# classes alongside this one). NOTE: same element as login.LOGIN_HOME_MAIN;
+# kept separate for now, worth collapsing to one shared marker later.
+NAV_HOME_MAIN = (
+    "xpath://main[contains(concat(' ', normalize-space(@class), ' '), "
+    "' homepage-spa-SharedLayout--body ')]"
+)
+# Legacy fallback (flagged: text-located, older UI, unverified against a capture).
+NAV_DASHBOARD_LINK = "xpath://a[normalize-space(.)='Dashboard']"
+
+# ============================================================================
+# NAVIGATION - report centre  (REPORTS_)
+# ============================================================================
+# Report-centre SPA container. Stable id; present across all report-centre tabs.
+REPORTS_CENTRE_PARENT = "xpath://div[@id='report-centre-parent']"
+# New-UI "All reports" nav link.
+REPORTS_ALL_REPORTS_LINK = "xpath://li/a[span[normalize-space(text())='All reports']]"
+# Legacy fallback: Accounting menu -> Reports (unverified against a capture).
+REPORTS_ACCOUNTING_TAB = "xpath://button[@type='button' and normalize-space(text())='Accounting']"
+REPORTS_ACCOUNTING_REPORTS_LINK = "xpath://a[normalize-space(text())='Reports']"
+# A report row inside the centre, keyed on the report-name span. Pass the name
+# through helpers.xpath_literal() into {report_literal} (safe-quotes apostrophes).
+# NOTE: report names are non-unique in this DOM (favourites + group), so this may
+# match multiple rows; their hrefs are identical, so any match is equivalent.
+REPORTS_REPORT_LINK_BY_NAME_TPL = (
+    "xpath://div[@id='report-centre-parent']"
+    "//a[.//span[@data-automationid='report-name']"
+    "[normalize-space(text())={report_literal}]]"
+)
+
+
+# ============================================================================
+# LOGOUT  (LOGOUT_)
+# Session teardown (auth). Success is verified by the login form reappearing
+# (reuses LOGIN_EMAIL_INPUT), so no locale-dependent page-title match is needed.
+# ============================================================================
+# User-avatar button in the top nav. Stable automation-id - no username needed,
+# so no html.unescape and no xpath-injection surface.
+LOGOUT_USER_MENU_BUTTON = "xpath://button[@data-automationid='xnav-addon-user-iconbutton']"
+# "Log out" link inside the (initially hidden) user-menu flyout. Keyed on the
+# stable /logout href rather than the locale-dependent 'Log out' link text.
+LOGOUT_LINK = "xpath://a[@href='https://go.xero.com/logout']"
+
+
+# ============================================================================
+# SWITCH CLIENT  (SWITCH_)
+# Switch the active Xero organisation. Layered: new UI (Home) vs legacy UI
+# (Dashboard). The Home/Dashboard indicators reuse the shared NAV_ pair
+# (NAV_HOME_LINK / NAV_DASHBOARD_LINK) - not duplicated here.
+# Active-org checks and account links are {account}-templated (_TPL); feed them
+# helpers.xpath_literal(account) (safe-quotes apostrophes and ampersands).
+# ============================================================================
+
+# --- New UI ---
+SWITCH_NEW_SEARCH = "xpath://input[@placeholder='Search organizations']"
+SWITCH_NEW_NO_RESULTS = "xpath://p[starts-with(normalize-space(.), 'No results found for')]"
+# FRAGILE (carried from original): "the first button on the page" is not a robust
+# anchor for the organisation selector. Replace with a real data-automationid /
+# aria-label when the page HTML is available.
+SWITCH_NEW_USER_BUTTON = "xpath://button[@type='button']"
+SWITCH_NEW_ACTIVE_ORG_TPL = (
+    "xpath://div[@class='header-and-quick-actions-mfe-Header--organisation-name-text' "
+    "and text()={account_literal}]"
+)
+SWITCH_NEW_ACCOUNT_LINK_TPL = (
+    "xpath://a[@role='link' and .//span[normalize-space(.)={account_literal}]]"
+)
+
+# --- Legacy UI (verbatim from the original; unverified against a capture) ---
+SWITCH_OLD_CHANGE_ORG = (
+    "xpath://button[@type='button']//span[normalize-space(text())='Change organisation']"
+)
+SWITCH_OLD_ACCOUNT_SELECT = "xpath://div[@class='xnav-appbutton--body']"
+SWITCH_OLD_SEARCH_ORG = "xpath://input[@role='searchbox' and @aria-label='Search organisations']"
+SWITCH_OLD_SEARCH_BOX = "xpath://input[normalize-space(@placeholder)='Search organisations']"
+SWITCH_OLD_NO_RESULTS = "xpath://div[starts-with(normalize-space(.), 'No results found for')]"
+SWITCH_OLD_ACTIVE_ORG_TPL = (
+    "xpath://div[@class='xnav-appbutton--body']"
+    "//span[@class='xnav-appbutton--text' and normalize-space(text())={account_literal}]"
+)
+SWITCH_OLD_ACCOUNT_LINK_TPL = (
+    "xpath://a[@class='xnav-verticalmenuitem--body xnav-menuitem-orgpractice']"
+    "//span[normalize-space(.)={account_literal}]"
+)

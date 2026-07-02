@@ -3,6 +3,7 @@ import json
 from robocorp.tasks import task
 from datetime import date
 from dataclasses import replace
+from RPA.MFA import MFA
 
 # TODO: remove logging code below once development is over
 import logging
@@ -17,18 +18,23 @@ from iaa_rpa_utils.logger import get_logger, ProcessLogger
 from iaa_rpa_utils.browser import SeleniumBrowser
 from iaa_rpa_utils.credentials import get_credential
 #from RPA_process.Client.Impact.process import xero_login
-from iaa_rpa_xb.xero_login import xero_blue_login
+# from iaa_rpa_xb.xero_login import xero_blue_login
 # from iaa_rpa_xero_blue.xero_blue_download_bank_reconciliation_report import xero_blue_download_bank_reconciliation_report
-from iaa_rpa_xb.xero_blue_navigate_to_reports_dashboard import xero_blue_navigate_to_reports_dashboard
-from iaa_rpa_xb.xero_blue_navigate_to_report import xero_blue_navigate_to_report
+# from iaa_rpa_xb.xero_blue_navigate_to_reports_dashboard import xero_blue_navigate_to_reports_dashboard
+# from iaa_rpa_xb.xero_blue_navigate_to_report import xero_blue_navigate_to_report
 # from iaa_rpa_xero_blue.add_ons.xero_blue_get_bank_reconciliation_accounts import get_bank_reconciliation_accounts
-from iaa_rpa_xb.add_ons.xero_navigate_to_report_wrapper import navigate_to_xero_report_wrapper
+#from iaa_rpa_xb.add_ons.xero_navigate_to_report_wrapper import navigate_to_xero_report_wrapper
 # from iaa_rpa_xero_blue.xero_blue_downlaod_aged_payables_detail_report import xero_blue_download_aged_payables_details_report
 # from iaa_rpa_xero_blue.xero_blue_download_aged_receivables_detail_report import xero_blue_download_aged_receivables_detail_report
 # from iaa_rpa_xero_blue.xero_blue_download_gst_reconciliation_report import xero_blue_download_gst_reconciliation_report
 # from iaa_rpa_xero_blue.xero_blue_download_general_ledger_detail_report import xero_blue_download_general_ledger_details_report
 # from iaa_rpa_xero_blue.xero_blue_download_trial_balance_report import xero_blue_download_trial_balance_report
 # from iaa_rpa_xero_blue.xero_blue_download_activity_statement_report import xero_blue_download_activity_statement_report
+from iaa_rpa_xero_blue.login import xero_blue_login
+from iaa_rpa_xero_blue.navigation import navigate_to_all_reports_page, navigate_to_dashboard_page, navigate_to_report_page
+from iaa_rpa_xero_blue.logout import xero_blue_logout
+
+
 from iaa_rpa_xero_blue.download_activity_statement import (
         StatementPeriod,
         ActivityStatementRequest,
@@ -85,75 +91,75 @@ def impact_main() -> None:
     FY = 2025                 # financial year (int)
     
 
-    reports_to_process = [
-        {"name": "Activity Statement", "fn": download_activity_statement_report, "request": ActivityStatementRequest(
-            period=StatementPeriod("September", 2025),   # StatementPeriod, not a tuple
-            download_directory=DOWNDIR,
-            report_file_name="Activity Statement",
-        ), "args": None},
+    # reports_to_process = [
+    #     {"name": "Activity Statement", "fn": download_activity_statement_report, "request": ActivityStatementRequest(
+    #         period=StatementPeriod("September", 2025),   # StatementPeriod, not a tuple
+    #         download_directory=DOWNDIR,
+    #         report_file_name="Activity Statement",
+    #     ), "args": None},
 
-        # ---- Aged Receivables Detail  ("Due Date" / "Invoice Date") ------------
-        {"name": "Aged Receivables Detail", "fn": download_aged_receivables_detail_report, "request": AgedReceivablesRequest(
-            financial_year=FY,
-            aging_by="Due Date",
-            download_directory=DOWNDIR,
-            report_file_name="Aged Receivables Detail",
-            # end_date=date(2025, 5, 15),   # optional datetime.date; omit to use 30 Jun {FY}
-            # add_gst_column=True,
-        ), "args": None},
+    #     # ---- Aged Receivables Detail  ("Due Date" / "Invoice Date") ------------
+    #     {"name": "Aged Receivables Detail", "fn": download_aged_receivables_detail_report, "request": AgedReceivablesRequest(
+    #         financial_year=FY,
+    #         aging_by="Due Date",
+    #         download_directory=DOWNDIR,
+    #         report_file_name="Aged Receivables Detail",
+    #         # end_date=date(2025, 5, 15),   # optional datetime.date; omit to use 30 Jun {FY}
+    #         # add_gst_column=True,
+    #     ), "args": None},
 
-        # ---- Aged Payables Detail  ("Due Date" / "Invoice Date") ---------------
-        {"name": "Aged Payables Detail", "fn": download_aged_payables_detail_report, "request": AgedPayablesRequest(
-            financial_year=FY,
-            aging_by="Due Date",
-            download_directory=DOWNDIR,
-            report_file_name="Aged Payables Detail",
-            # end_date=date(2025, 5, 15),   # optional datetime.date; omit to use 30 Jun {FY}
-            # add_gst_column=True,
-        ), "args": None},
+    #     # ---- Aged Payables Detail  ("Due Date" / "Invoice Date") ---------------
+    #     {"name": "Aged Payables Detail", "fn": download_aged_payables_detail_report, "request": AgedPayablesRequest(
+    #         financial_year=FY,
+    #         aging_by="Due Date",
+    #         download_directory=DOWNDIR,
+    #         report_file_name="Aged Payables Detail",
+    #         # end_date=date(2025, 5, 15),   # optional datetime.date; omit to use 30 Jun {FY}
+    #         # add_gst_column=True,
+    #     ), "args": None},
 
-        # ---- General Ledger Detail  (datetime.date; accounting_method) ---------
-        {"name": "General Ledger Detail", "fn": download_general_ledger_detail_report, "request": GeneralLedgerDetailRequest(
-            download_directory=DOWNDIR,
-            report_file_name="General Ledger Detail",
-            start_date=date(2024, 7, 1),
-            end_date=date(2025, 6, 30),
-            # financial_year=FY,        # alternative to start/end; either date can fall back to FY
-            accounting_method="Cash",   # "Cash" (default) or "Accrual"
-        ), "args": None},
+    #     # ---- General Ledger Detail  (datetime.date; accounting_method) ---------
+    #     {"name": "General Ledger Detail", "fn": download_general_ledger_detail_report, "request": GeneralLedgerDetailRequest(
+    #         download_directory=DOWNDIR,
+    #         report_file_name="General Ledger Detail",
+    #         start_date=date(2024, 7, 1),
+    #         end_date=date(2025, 6, 30),
+    #         # financial_year=FY,        # alternative to start/end; either date can fall back to FY
+    #         accounting_method="Cash",   # "Cash" (default) or "Accrual"
+    #     ), "args": None},
 
-        # ---- Trial Balance  ("as at" end_date only) ----------------------------
-        {"name": "Trial Balance", "fn": download_trial_balance_report, "request": TrialBalanceRequest(
-            download_directory=DOWNDIR,
-            report_file_name="Trial Balance",
-            end_date=date(2025, 6, 30),
-            # financial_year=FY,        # alternative to end_date
-            accounting_method="Cash",   # "Cash" (default) or "Accrual"
-        ), "args": None},
+    #     # ---- Trial Balance  ("as at" end_date only) ----------------------------
+    #     {"name": "Trial Balance", "fn": download_trial_balance_report, "request": TrialBalanceRequest(
+    #         download_directory=DOWNDIR,
+    #         report_file_name="Trial Balance",
+    #         end_date=date(2025, 6, 30),
+    #         # financial_year=FY,        # alternative to end_date
+    #         accounting_method="Cash",   # "Cash" (default) or "Accrual"
+    #     ), "args": None},
 
-        # ---- GST Reconciliation  (datetime.date; excel -> .xls, or pdf) --------
-        {"name": "GST Reconciliation", "fn": download_gst_reconciliation_report, "request": GstReconciliationRequest(
-            download_directory=DOWNDIR,
-            report_file_name="GST Reconciliation",
-            start_date=date(2024, 7, 1),
-            end_date=date(2025, 6, 30),
-            # financial_year=FY,
-            # export_format="pdf",      # "excel" (default, saves .xls) or "pdf"
-        ), "args": None},
+    #     # ---- GST Reconciliation  (datetime.date; excel -> .xls, or pdf) --------
+    #     {"name": "GST Reconciliation", "fn": download_gst_reconciliation_report, "request": GstReconciliationRequest(
+    #         download_directory=DOWNDIR,
+    #         report_file_name="GST Reconciliation",
+    #         start_date=date(2024, 7, 1),
+    #         end_date=date(2025, 6, 30),
+    #         # financial_year=FY,
+    #         # export_format="pdf",      # "excel" (default, saves .xls) or "pdf"
+    #     ), "args": None},
 
-        # ---- Bank Reconciliation -----------------------------------------------
-        # ALL accounts: bank_account is a placeholder (the runner overrides it per
-        # account); args="all" tells the runner to enumerate and loop.
-        {"name": "Bank Reconciliation", "fn": download_bank_reconciliation_report, "request": BankReconciliationRequest(
-            bank_account="(all accounts)",   # placeholder; replaced per account by the runner
-            download_directory=DOWNDIR,
-            report_file_name="Bank Reconciliation",
-            start_date=date(2024, 7, 1),
-            end_date=date(2025, 6, 30),
-        ), "args": "all"},
-        # Or specific accounts:  "args": ["1-0100 - Impact Operating Account", "1-1000 - Cheque account"]
+    #     # ---- Bank Reconciliation -----------------------------------------------
+    #     # ALL accounts: bank_account is a placeholder (the runner overrides it per
+    #     # account); args="all" tells the runner to enumerate and loop.
+    #     {"name": "Bank Reconciliation", "fn": download_bank_reconciliation_report, "request": BankReconciliationRequest(
+    #         bank_account="(all accounts)",   # placeholder; replaced per account by the runner
+    #         download_directory=DOWNDIR,
+    #         report_file_name="Bank Reconciliation",
+    #         start_date=date(2024, 7, 1),
+    #         end_date=date(2025, 6, 30),
+    #     ), "args": "all"},
+    #     # Or specific accounts:  "args": ["1-0100 - Impact Operating Account", "1-1000 - Cheque account"]
 
-    ]
+    # ]
 
 #TODO: code below
     xero_url = "https://go.xero.com/Dashboard/default.aspx"
@@ -168,6 +174,8 @@ def impact_main() -> None:
     if (secret is None or not secret.username or not secret.password):
         raise ValueError("Secret is invalid")
 
+    mfa = MFA()
+    otp_code = mfa.get_time_based_otp(secret.password)
     
     browser = SeleniumBrowser(
         use_existing_profile=True,
@@ -175,24 +183,37 @@ def impact_main() -> None:
         copy_profile_to_temp=True,
     )
 
-    xero_secret = secret.password
+    
 
     try:
-        with ProcessLogger("Insight Login", logger):
+        with ProcessLogger("Login to Xero", logger):
             xero_blue_login(
-                browser,
-                creds.username,
-                creds.password,
-                xero_url,
-                payroll_url,
-                xero_secret,
-                max_retry=1,
-                is_authentication_code_is_entered=False,
-                is_user_logged_in_to_xero=False  
+                browser=browser,
+                email=creds.username,
+                password=creds.password,
+                otp=otp_code,
+                xero_blue_url=xero_url,
+                payroll_url=payroll_url
             )
-      
     except Exception:
-        logger.exception("Login to Xero failed")
+         logger.exception("Login to Xero failed")
+    
+    # try:
+    #     with ProcessLogger("Insight Login", logger):
+    #         xero_blue_login(
+    #             browser,
+    #             creds.username,
+    #             creds.password,
+    #             xero_url,
+    #             payroll_url,
+    #             xero_secret,
+    #             max_retry=1,
+    #             is_authentication_code_is_entered=False,
+    #             is_user_logged_in_to_xero=False  
+    #         )
+      
+    # except Exception:
+    #     logger.exception("Login to Xero failed")
 
 
     # try:
@@ -214,34 +235,34 @@ def impact_main() -> None:
     #     title="Reports"
     #     )
 
-    for report in reports_to_process:
-        navigate_to_xero_report_wrapper(
-            browser=browser,
-            report_name=report["name"],
-            title="Reports",
-        )
+    # for report in reports_to_process:
+    #     navigate_to_xero_report_wrapper(
+    #         browser=browser,
+    #         report_name=report["name"],
+    #         title="Reports",
+    #     )
 
-        fn = report["fn"]
-        args = report.get("args")  # matches the config key
+    #     fn = report["fn"]
+    #     args = report.get("args")  # matches the config key
 
-        # Bank Reconciliation multi-account fan-out
-        if report["name"] == "Bank Reconciliation" and args is not None:
-            accounts = list_all_bank_accounts(browser) if args == "all" else args
-            if not accounts:
-                logger.warning(f"{report['name']}: no bank accounts to process — skipping")
-                continue
-            base = report["request"]
-            for account in accounts:
-                per_account = replace(
-                    base,
-                    bank_account=account,
-                    report_file_name=f"{base.report_file_name}_{account}",
-                )
-                fn(browser, per_account)
-            continue  # done with this report — do NOT fall through
+    #     # Bank Reconciliation multi-account fan-out
+    #     if report["name"] == "Bank Reconciliation" and args is not None:
+    #         accounts = list_all_bank_accounts(browser) if args == "all" else args
+    #         if not accounts:
+    #             logger.warning(f"{report['name']}: no bank accounts to process — skipping")
+    #             continue
+    #         base = report["request"]
+    #         for account in accounts:
+    #             per_account = replace(
+    #                 base,
+    #                 bank_account=account,
+    #                 report_file_name=f"{base.report_file_name}_{account}",
+    #             )
+    #             fn(browser, per_account)
+    #         continue  # done with this report — do NOT fall through
 
-        # Everything else (and single-account bank rec): one call
-        fn(browser, report["request"])
+    #     # Everything else (and single-account bank rec): one call
+    #     fn(browser, report["request"])
 
     print ("breakpoint")
     # request = ActivityStatementRequest(

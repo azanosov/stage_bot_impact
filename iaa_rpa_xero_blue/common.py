@@ -11,13 +11,17 @@ report module stays small and composes these rather than re-implementing them:
     built on config.py's locator templates
   - the clear-and-type input idiom
   - output helpers: build a save path, verify a saved file
-  - the best-effort audit screenshot
+  - the best-effort full-page audit screenshot
+
+Validation and file/interaction failures raise the library's TYPED exceptions
+from ``iaa_rpa_utils.exceptions`` (DataValidationError for bad inputs / an
+unavailable requested option; DownloadError for a file that did not land), so
+every report module surfaces the same typed errors.
 
 Locators live in config.py; behaviour lives here. This module imports config;
-the report modules import both.
-
-Note: import style here is flat (`import config`). If these modules are run as
-a package, change to `from . import config`.
+the report modules import both. Imports are package-relative (`from . import
+config`), so config.py, common.py and the report modules must live together in
+the same package (e.g. iaa_rpa_xero_blue) with an __init__.py.
 """
 
 from __future__ import annotations
@@ -26,8 +30,10 @@ import os
 from datetime import date, datetime
 
 from iaa_rpa_utils import setup_logger
+from iaa_rpa_utils.exceptions import DataValidationError, DownloadError
+from iaa_rpa_utils.helpers import take_full_page_screenshot
 
-import config
+from . import config
 
 logger = setup_logger(__name__)
 
@@ -37,6 +43,7 @@ logger = setup_logger(__name__)
 # ============================================================================
 DEFAULT_ELEMENT_TIMEOUT = 5    # seconds; general element waits
 EXPORT_TIMEOUT = 10            # seconds; Update/Export/format - Xero builds the file server-side
+DETECTION_TIMEOUT = 2          # seconds; fast UI-version / negative-result probes
 MIN_FINANCIAL_YEAR = 2000      # earliest financial year we accept
 
 # Locale-independent month abbreviations, matching the labels Xero's date field
@@ -63,30 +70,30 @@ def format_xero_date(d: date) -> str:
 
 # ============================================================================
 # Request-validation helpers
-# (raise the Python built-ins for now; migration to iaa_rpa_utils.exceptions
-#  typed errors is a planned, separate cleanup.)
+# (raise the library's typed DataValidationError, so every report surfaces the
+#  same class for a bad input; called inside each request's __post_init__)
 # ============================================================================
 def validate_non_empty_str(value, name: str) -> None:
     """Require a non-empty string (used for download_directory / report_file_name)."""
     if not isinstance(value, str) or not value.strip():
-        raise ValueError(f"{name} is required and must be a non-empty string")
+        raise DataValidationError(f"{name} is required and must be a non-empty string")
 
 
 def validate_optional_date(value, name: str) -> None:
     """When given, require a real datetime.date (datetime is accepted - it is a
     date subclass and only the calendar part is used)."""
     if value is not None and not isinstance(value, date):
-        raise TypeError(f"{name} must be a datetime.date, got {type(value).__name__}")
+        raise DataValidationError(f"{name} must be a datetime.date, got {type(value).__name__}")
 
 
 def validate_financial_year(value) -> None:
     """Require a plausible integer financial year. bool is an int subclass, so
     it is excluded explicitly."""
     if not isinstance(value, int) or isinstance(value, bool):
-        raise TypeError(f"financial_year must be an int, got {type(value).__name__}")
+        raise DataValidationError(f"financial_year must be an int, got {type(value).__name__}")
     max_year = datetime.now().year + 2
     if not MIN_FINANCIAL_YEAR <= value <= max_year:
-        raise ValueError(
+        raise DataValidationError(
             f"financial_year must be between {MIN_FINANCIAL_YEAR} and {max_year}, got {value}"
         )
 
@@ -94,7 +101,7 @@ def validate_financial_year(value) -> None:
 def validate_date_order(start: date | None, end: date | None) -> None:
     """When both dates are given explicitly, start must not be after end."""
     if start is not None and end is not None and start > end:
-        raise ValueError(f"start_date ({start}) must not be after end_date ({end})")
+        raise DataValidationError(f"start_date ({start}) must not be after end_date ({end})")
 
 
 # ============================================================================
@@ -151,7 +158,7 @@ def select_listbox_option(
     would change the output), then clicks it. The dropdown closes on selection."""
     browser.click_element(trigger_locator, timeout=timeout)
     if not browser.does_page_contain_element(option_locator, timeout=timeout):
-        raise RuntimeError(f"{description} is not available in the dropdown")
+        raise DataValidationError(f"{description} is not available in the dropdown")
     browser.click_element(option_locator, timeout=timeout)
 
 
@@ -184,22 +191,39 @@ def build_dest_path(directory: str, filename: str, ext: str) -> str:
 def verify_saved_file(path: str) -> None:
     """Confirm the export actually landed on disk (principle 10). Raises if not."""
     if not os.path.isfile(path):
-        raise RuntimeError(f"Expected export file was not saved: {path}")
+        raise DownloadError(f"Expected export file was not saved: {path}")
 
 
 # ============================================================================
 # Audit screenshot (best effort - must never abort the run)
 # ============================================================================
-def capture_audit_screenshot(browser) -> None:
-    """Capture an audit screenshot of the rendered report into the working
-    directory. Best effort: a screenshot failure is logged and swallowed, since
-    it cannot affect the report data."""
-    try:
-        folder_path = os.getcwd()
-        os.makedirs(folder_path, exist_ok=True)
-        timestamp = datetime.now().strftime("%y%m%d.%H%M%S")
-        screenshot_path = os.path.join(folder_path, f"ExceptionScreenshot_{timestamp}.png")
-        browser.screenshot(screenshot_path)
-        logger.info(f"Screenshot saved at: {screenshot_path}")
-    except Exception as e:
-        logger.warning(f"Could not capture audit screenshot: {e}")
+def capture_report_screenshot(
+    browser, directory: str, report_name: str, stage: str, *, enabled: bool
+) -> None:
+    """Capture a full-page audit screenshot of the report surface.
+
+    Best effort: a screenshot failure is logged as a warning and swallowed - it
+    can never affect the report data or abort the run. Does nothing when
+    ``enabled`` is False.
+
+    The file lands in ``directory`` with a derived, self-describing name:
+        <report_name>_<stage>_<YYYYMMDD_HHMMSS>.png
+    (the caller owns the folder; the stage + timestamp keep the shots
+    distinguishable and collision-free). Uses the full-page CDP capture so long,
+    scrolling SPA reports are captured in full, not just the viewport.
+
+    Args:
+        browser:     SeleniumBrowser wrapper (its .driver is passed to the
+                     full-page capture helper).
+        directory:   Folder the screenshot is written to.
+        report_name: Short report slug used as the filename prefix (e.g. "trial_balance").
+        stage:       Descriptive stage marker (e.g. "before_update", "after_update").
+        enabled:     When False, this is a no-op.
+    """
+    if not enabled:
+        return
+    path = os.path.join(directory, f"{report_name}_{stage}_{datetime.now():%Y%m%d_%H%M%S}.png")
+    if take_full_page_screenshot(browser.driver, path):
+        logger.info(f"Audit screenshot saved: {path}")
+    else:
+        logger.warning(f"Audit screenshot failed ({report_name}/{stage}) - continuing")
