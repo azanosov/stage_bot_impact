@@ -357,9 +357,6 @@ LOGIN_SUBMIT_BUTTON = "id:xl-form-submit"
 # --- MFA step (automation-ids) ---
 LOGIN_MFA_OTP_INPUT = "xpath://input[@data-automationid='auth-onetimepassword--input']"
 LOGIN_MFA_CONFIRM_BUTTON = "xpath://button[@data-automationid='auth-submitcodebutton']"
-# Trust-device checkbox: a real <input type=checkbox>; read its checked state
-# before clicking so we never TOGGLE an already-trusted device off.
-LOGIN_TRUST_DEVICE_CHECKBOX = "xpath://input[@type='checkbox' and @data-automationid='auth-remembermecheckbox--input']"
 
 # --- Logged-in check (layered: new-UI <main> first, legacy Dashboard fallback) ---
 # Dashboard SPA container. Token-safe class match (the <main> may carry other

@@ -1,39 +1,52 @@
 """
-Module for logging in to Xero Blue.
+Session authentication for Xero Blue: log in and log out.
 
-This is the session/auth entry point - NOT a download. Every report/record
-module assumes an authenticated session; this module establishes it.
+This is the session/auth boundary - NOT a download. Every report/record module
+assumes an authenticated session; this module establishes it (``xero_blue_login``)
+and tears it down (``xero_blue_logout``). The two are mirror images and share the
+same locators and logged-in/out probes, so they live together here.
 
-Secret handling (important):
+Scope note: logout does NOT close the browser window - that is a lifecycle
+concern handled separately in close_browser.py.
+
+Secret handling (login):
     The caller passes in the email, password, AND a PRE-GENERATED one-time
     passcode (OTP). This module never holds the TOTP secret key and never
     generates a code, so the secret cannot leak from here. The password and the
-    OTP are treated as transient and are NEVER written to the logs.
+    OTP are treated as transient and are NEVER written to the logs. There is no
+    retry loop: one OTP in, one attempt. Retrying (with a fresh OTP) is the
+    caller's concern, since only the caller holds the secret.
 
-Flow:
-    1. Ensure the browser is on the login page (skip if already on a Xero
-       Blue / Payroll URL - preserves an existing session).
-    2. If already logged in (fast probe), return - nothing to do.
-    3. Enter email + password, submit.
-    4. If an MFA challenge is shown, enter the provided OTP, tick "Trust this
-       device" ONLY if it is not already ticked, and confirm.
-    5. Verify the logged-in state; raise if it cannot be confirmed.
+Verification is symmetric:
+    login  confirms success when the dashboard <main> (or the legacy Dashboard
+           link) appears;
+    logout confirms success when the login form (LOGIN_EMAIL_INPUT) reappears.
+    Both avoid the locale-dependent page-title match the legacy code used
+    ("Xero | Log in" varies by brand/locale).
 
-There is no retry loop: one OTP in, one attempt. Retrying (with a fresh OTP)
-is the caller's concern, since only the caller holds the secret.
+Logout click strategy:
+    The "Log out" link lives inside the user-avatar flyout, which is closed by
+    default. The link is present in the DOM even while the flyout is closed, so
+    clicking it directly would hit a hidden, non-interactable element and only
+    "succeed" via the browser wrapper's JavaScript-click fallback (noisy in the
+    logs, and reliant on a hidden-element click). Instead we open the flyout
+    first (click the avatar button), which makes the link genuinely visible and
+    interactable, then click it - the normal click path, no fallback needed.
 
-Locators live in config.py (the LOGIN_ section). The logged-in check is layered
-- the new-UI dashboard <main> first, then the legacy Dashboard link text - so it
-survives across UI versions.
+Locators live in config.py (LOGIN_ / LOGOUT_ sections). The logged-in check is
+layered - the new-UI dashboard <main> first, then the legacy Dashboard link - so
+it survives across UI versions.
 
-ERROR HANDLING: raises typed exceptions from ``iaa_rpa_utils.exceptions`` (login
-fails loudly - a caller cannot mistake failure for success):
+ERROR HANDLING: both functions fail loudly with typed exceptions from
+``iaa_rpa_utils.exceptions`` - a caller cannot mistake failure for success:
   - NavigationError - the login form never appeared (could not reach the page)
   - LoginError      - credentials/OTP were entered but the session was not
                       confirmed (e.g. wrong password or wrong/expired OTP)
+  - LogoutError     - logout could not be confirmed (login form did not reappear,
+                      or the Log out control could not be clicked)
 
 How to call:
-    from login import xero_blue_login
+    from iaa_rpa_xero_blue.auth import xero_blue_login, xero_blue_logout
 
     # Caller generates the OTP from its own held secret and passes the code in:
     xero_blue_login(
@@ -44,15 +57,22 @@ How to call:
         xero_blue_url="https://go.xero.com/...",
         payroll_url="https://payroll.xero.com/...",
     )
+    ...
+    xero_blue_logout(browser)
 
-On success the function returns None. On failure it raises - so a caller need
+Both functions return None on success and raise on failure - so a caller need
 only wrap the call, not inspect a return value.
 """
 
 from __future__ import annotations
 
 from iaa_rpa_utils import ProcessLogger, setup_logger
-from iaa_rpa_utils.exceptions import LoginError, NavigationError
+from iaa_rpa_utils.exceptions import (
+    ElementNotFoundError,
+    LoginError,
+    LogoutError,
+    NavigationError,
+)
 
 from . import common
 from . import config
@@ -61,7 +81,7 @@ from . import config
 logger = setup_logger(__name__)
 
 
-__all__ = ["xero_blue_login"]
+__all__ = ["xero_blue_login", "xero_blue_logout"]
 
 
 # Fast probe for "am I already logged in?" - the elements are either rendered
@@ -81,6 +101,9 @@ _TRUST_DEVICE_JS = (
 )
 
 
+# ============================================================================
+# Login
+# ============================================================================
 def xero_blue_login(
     browser,
     *,
@@ -203,3 +226,52 @@ def is_logged_in(browser, timeout: int) -> bool:
     if browser.does_page_contain_element(config.LOGIN_DASHBOARD_LINK, timeout=timeout):
         return True
     return False
+
+
+# ============================================================================
+# Logout
+# ============================================================================
+def xero_blue_logout(browser) -> None:
+    """Log out of Xero Blue. Returns None on success; raises on failure.
+
+    Args:
+        browser: SeleniumBrowser wrapper.
+
+    Raises:
+        LogoutError: logout could not be confirmed (login form did not reappear),
+                     or the Log out control could not be clicked.
+    """
+    with ProcessLogger("Xero Blue Logout", logger):
+        logger.info("STEP 1: Checking for an existing session...")
+        if browser.does_page_contain_element(
+            config.LOGIN_EMAIL_INPUT, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+        ):
+            logger.info("Already logged out - login form present")
+            return
+
+        logger.info("STEP 2: Clicking 'Log out'...")
+        click_logout(browser)
+
+        logger.info("STEP 3: Verifying logged-out state...")
+        if not browser.does_page_contain_element(
+            config.LOGIN_EMAIL_INPUT, timeout=common.EXPORT_TIMEOUT
+        ):
+            raise LogoutError("Logout not confirmed - login form did not reappear")
+        logger.info("Logout confirmed")
+
+
+def click_logout(browser) -> None:
+    """Open the user-avatar flyout, then click the 'Log out' link inside it.
+
+    The link is present in the DOM even while the flyout is closed, so clicking
+    it directly would hit a hidden element and only succeed via the wrapper's
+    JavaScript-click fallback. Opening the flyout first makes the link visible
+    and interactable, so the normal click path is used.
+    """
+    try:
+        browser.click_element(config.LOGOUT_USER_MENU_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT)
+        logger.info("Opened the user-avatar menu")
+        browser.click_element(config.LOGOUT_LINK, timeout=common.DEFAULT_ELEMENT_TIMEOUT)
+        logger.info("Clicked 'Log out'")
+    except ElementNotFoundError as e:
+        raise LogoutError(f"Could not click 'Log out': {e}") from e

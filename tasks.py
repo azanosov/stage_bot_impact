@@ -30,9 +30,8 @@ from iaa_rpa_utils.credentials import get_credential
 # from iaa_rpa_xero_blue.xero_blue_download_general_ledger_detail_report import xero_blue_download_general_ledger_details_report
 # from iaa_rpa_xero_blue.xero_blue_download_trial_balance_report import xero_blue_download_trial_balance_report
 # from iaa_rpa_xero_blue.xero_blue_download_activity_statement_report import xero_blue_download_activity_statement_report
-from iaa_rpa_xero_blue.login import xero_blue_login
+from iaa_rpa_xero_blue.auth import xero_blue_login, xero_blue_logout
 from iaa_rpa_xero_blue.navigation import navigate_to_all_reports_page, navigate_to_dashboard_page, navigate_to_report_page
-from iaa_rpa_xero_blue.logout import xero_blue_logout
 from iaa_rpa_xero_blue.switch_client import switch_client
 
 
@@ -92,75 +91,67 @@ def impact_main() -> None:
     FY = 2025                 # financial year (int)
     
 
-    # reports_to_process = [
-    #     {"name": "Activity Statement", "fn": download_activity_statement_report, "request": ActivityStatementRequest(
-    #         period=StatementPeriod("September", 2025),   # StatementPeriod, not a tuple
-    #         download_directory=DOWNDIR,
-    #         report_file_name="Activity Statement",
-    #     ), "args": None},
+    SHOTS = os.path.join(DOWNDIR, "screenshots")   # or just: SHOTS = DOWNDIR
 
-    #     # ---- Aged Receivables Detail  ("Due Date" / "Invoice Date") ------------
-    #     {"name": "Aged Receivables Detail", "fn": download_aged_receivables_detail_report, "request": AgedReceivablesRequest(
-    #         financial_year=FY,
-    #         aging_by="Due Date",
-    #         download_directory=DOWNDIR,
-    #         report_file_name="Aged Receivables Detail",
-    #         # end_date=date(2025, 5, 15),   # optional datetime.date; omit to use 30 Jun {FY}
-    #         # add_gst_column=True,
-    #     ), "args": None},
+    reports_to_process = [
+        {"name": "Activity Statement", "fn": download_activity_statement_report, "request": ActivityStatementRequest(
+            period=StatementPeriod("September", 2025),   # StatementPeriod, not a tuple
+            download_directory=DOWNDIR,
+            report_file_name="Activity Statement",
+            screenshot_path=SHOTS,
+        ), "args": None},
 
-    #     # ---- Aged Payables Detail  ("Due Date" / "Invoice Date") ---------------
-    #     {"name": "Aged Payables Detail", "fn": download_aged_payables_detail_report, "request": AgedPayablesRequest(
-    #         financial_year=FY,
-    #         aging_by="Due Date",
-    #         download_directory=DOWNDIR,
-    #         report_file_name="Aged Payables Detail",
-    #         # end_date=date(2025, 5, 15),   # optional datetime.date; omit to use 30 Jun {FY}
-    #         # add_gst_column=True,
-    #     ), "args": None},
+        {"name": "Aged Receivables Detail", "fn": download_aged_receivables_detail_report, "request": AgedReceivablesRequest(
+            financial_year=FY,
+            aging_by="Due Date",
+            download_directory=DOWNDIR,
+            report_file_name="Aged Receivables Detail",
+            screenshot_path=SHOTS,
+        ), "args": None},
 
-    #     # ---- General Ledger Detail  (datetime.date; accounting_method) ---------
-    #     {"name": "General Ledger Detail", "fn": download_general_ledger_detail_report, "request": GeneralLedgerDetailRequest(
-    #         download_directory=DOWNDIR,
-    #         report_file_name="General Ledger Detail",
-    #         start_date=date(2024, 7, 1),
-    #         end_date=date(2025, 6, 30),
-    #         # financial_year=FY,        # alternative to start/end; either date can fall back to FY
-    #         accounting_method="Cash",   # "Cash" (default) or "Accrual"
-    #     ), "args": None},
+        {"name": "Aged Payables Detail", "fn": download_aged_payables_detail_report, "request": AgedPayablesRequest(
+            financial_year=FY,
+            aging_by="Due Date",
+            download_directory=DOWNDIR,
+            report_file_name="Aged Payables Detail",
+            screenshot_path=SHOTS,
+        ), "args": None},
 
-    #     # ---- Trial Balance  ("as at" end_date only) ----------------------------
-    #     {"name": "Trial Balance", "fn": download_trial_balance_report, "request": TrialBalanceRequest(
-    #         download_directory=DOWNDIR,
-    #         report_file_name="Trial Balance",
-    #         end_date=date(2025, 6, 30),
-    #         # financial_year=FY,        # alternative to end_date
-    #         accounting_method="Cash",   # "Cash" (default) or "Accrual"
-    #     ), "args": None},
+        {"name": "General Ledger Detail", "fn": download_general_ledger_detail_report, "request": GeneralLedgerDetailRequest(
+            download_directory=DOWNDIR,
+            report_file_name="General Ledger Detail",
+            start_date=date(2024, 7, 1),
+            end_date=date(2025, 6, 30),
+            accounting_method="Cash",   # "Cash" (default) or "Accrual"
+            screenshot_path=SHOTS,
+        ), "args": None},
 
-    #     # ---- GST Reconciliation  (datetime.date; excel -> .xls, or pdf) --------
-    #     {"name": "GST Reconciliation", "fn": download_gst_reconciliation_report, "request": GstReconciliationRequest(
-    #         download_directory=DOWNDIR,
-    #         report_file_name="GST Reconciliation",
-    #         start_date=date(2024, 7, 1),
-    #         end_date=date(2025, 6, 30),
-    #         # financial_year=FY,
-    #         # export_format="pdf",      # "excel" (default, saves .xls) or "pdf"
-    #     ), "args": None},
+        {"name": "Trial Balance", "fn": download_trial_balance_report, "request": TrialBalanceRequest(
+            download_directory=DOWNDIR,
+            report_file_name="Trial Balance",
+            end_date=date(2025, 6, 30),
+            accounting_method="Cash",   # "Cash" (default) or "Accrual"
+            screenshot_path=SHOTS,
+        ), "args": None},
 
-    #     # ---- Bank Reconciliation -----------------------------------------------
-    #     # ALL accounts: bank_account is a placeholder (the runner overrides it per
-    #     # account); args="all" tells the runner to enumerate and loop.
-    #     {"name": "Bank Reconciliation", "fn": download_bank_reconciliation_report, "request": BankReconciliationRequest(
-    #         bank_account="(all accounts)",   # placeholder; replaced per account by the runner
-    #         download_directory=DOWNDIR,
-    #         report_file_name="Bank Reconciliation",
-    #         start_date=date(2024, 7, 1),
-    #         end_date=date(2025, 6, 30),
-    #     ), "args": "all"},
-    #     # Or specific accounts:  "args": ["1-0100 - Impact Operating Account", "1-1000 - Cheque account"]
+        {"name": "GST Reconciliation", "fn": download_gst_reconciliation_report, "request": GstReconciliationRequest(
+            download_directory=DOWNDIR,
+            report_file_name="GST Reconciliation",
+            start_date=date(2024, 7, 1),
+            end_date=date(2025, 6, 30),
+            # export_format="pdf",      # "excel" (default, saves .xls) or "pdf"
+            screenshot_path=SHOTS,
+        ), "args": None},
 
-    # ]
+        {"name": "Bank Reconciliation", "fn": download_bank_reconciliation_report, "request": BankReconciliationRequest(
+            bank_account="(all accounts)",   # placeholder; replaced per account by the runner
+            download_directory=DOWNDIR,
+            report_file_name="Bank Reconciliation",
+            start_date=date(2024, 7, 1),
+            end_date=date(2025, 6, 30),
+            screenshot_path=SHOTS,
+        ), "args": "all"},
+    ]
 
 #TODO: code below
     xero_url = "https://go.xero.com/Dashboard/default.aspx"
@@ -224,7 +215,7 @@ def impact_main() -> None:
          logger.exception("Login to Xero failed")
     
     #for client in clients:
-    switch_client(browser, "R & R FARAH PTY LTD")
+    #switch_client(browser, "R & R FARAH PTY LTD")
 
     # navigate_to_all_reports_page(browser)
     # navigate_to_dashboard_page(browser)
@@ -234,54 +225,30 @@ def impact_main() -> None:
 
 
 
+    for report in reports_to_process:
+        navigate_to_report_page(browser, report["name"])
 
-    # try:
-    #     with ProcessLogger("Report page", logger):
+        fn = report["fn"]
+        args = report.get("args")  # matches the config key
 
-    #         #request = XeroClientSwitchRequest(account_name="Heyday Furniture Pty. Ltd")
-    #         xero_blue_switch_client(browser, "R & R FARAH PTY LTD")
-    #         # xero_blue_switch_client(
-    #         #     browser,
-    #         #     "Heyday Furniture Pty. Ltd"
-    #         # )
+        # Bank Reconciliation multi-account fan-out
+        if report["name"] == "Bank Reconciliation" and args is not None:
+            accounts = list_all_bank_accounts(browser) if args == "all" else args
+            if not accounts:
+                logger.warning(f"{report['name']}: no bank accounts to process — skipping")
+                continue
+            base = report["request"]
+            for account in accounts:
+                per_account = replace(
+                    base,
+                    bank_account=account,
+                    report_file_name=f"{base.report_file_name}_{account}",
+                )
+                fn(browser, per_account)
+            continue  # done with this report — do NOT fall through
 
-    # except Exception:
-    #     logger.exception("Navigation to report pages failed")
-
-    # navigate_to_xero_report_wrapper(
-    #     browser=browser,
-    #     report_name='General Ledger Detail', 
-    #     title="Reports"
-    #     )
-
-    # for report in reports_to_process:
-    #     navigate_to_xero_report_wrapper(
-    #         browser=browser,
-    #         report_name=report["name"],
-    #         title="Reports",
-    #     )
-
-    #     fn = report["fn"]
-    #     args = report.get("args")  # matches the config key
-
-    #     # Bank Reconciliation multi-account fan-out
-    #     if report["name"] == "Bank Reconciliation" and args is not None:
-    #         accounts = list_all_bank_accounts(browser) if args == "all" else args
-    #         if not accounts:
-    #             logger.warning(f"{report['name']}: no bank accounts to process — skipping")
-    #             continue
-    #         base = report["request"]
-    #         for account in accounts:
-    #             per_account = replace(
-    #                 base,
-    #                 bank_account=account,
-    #                 report_file_name=f"{base.report_file_name}_{account}",
-    #             )
-    #             fn(browser, per_account)
-    #         continue  # done with this report — do NOT fall through
-
-    #     # Everything else (and single-account bank rec): one call
-    #     fn(browser, report["request"])
+        # Everything else (and single-account bank rec): one call
+        fn(browser, report["request"])
 
     print ("breakpoint")
     # request = ActivityStatementRequest(
