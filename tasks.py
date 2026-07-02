@@ -198,6 +198,14 @@ def impact_main() -> None:
     except Exception:
          logger.exception("Login to Xero failed")
     
+
+    navigate_to_all_reports_page(browser)
+    navigate_to_dashboard_page(browser)
+    navigate_to_report_page(browser, "General Ledger Detail")
+
+    xero_blue_logout(browser)
+
+
     # try:
     #     with ProcessLogger("Insight Login", logger):
     #         xero_blue_login(
