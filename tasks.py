@@ -77,8 +77,17 @@ from iaa_rpa_xero_blue.download_activity_statement import (
     StatementPeriod,
     download_activity_statement_report,
 )
+from iaa_rpa_xero_blue.download_profit_and_loss import ProfitAndLossRequest, download_profit_and_loss_report
+from iaa_rpa_xero_blue.download_aged_payables_summary import (
+    AgingMethod, AgedPayablesSummaryRequest, download_aged_payables_summary_report
+)
+from iaa_rpa_xero_blue.download_aged_receivables_summary import (
+    AgingMethod, AgedReceivablesSummaryRequest, download_aged_receivables_summary_report
+)
 
-
+from iaa_rpa_xero_blue.download_account_transactions import (
+    AccountTransactionsRequest, download_account_transactions_report
+)
 
 
 
@@ -96,64 +105,123 @@ def impact_main() -> None:
     SHOTS = os.path.join(DOWNDIR, "screenshots")   # or just: SHOTS = DOWNDIR
 
     reports_to_process = [
-        # {"name": "Activity Statement", "fn": download_activity_statement_report, "request": ActivityStatementRequest(
-        #     period=StatementPeriod("September", 2025),   # StatementPeriod, not a tuple
-        #     download_directory=DOWNDIR,
-        #     report_file_name="Activity Statement",
-        #     screenshot_path=SHOTS,
-        # ), "args": None},
+            {"name": "Activity Statement", "fn": download_activity_statement_report, "request": ActivityStatementRequest(
+                period=StatementPeriod("September", 2025),   # StatementPeriod, not a tuple
+                download_directory=DOWNDIR,
+                report_file_name="Activity Statement",
+                screenshot_path=SHOTS,
+            ), "args": None},
 
-        # {"name": "Aged Receivables Detail", "fn": download_aged_receivables_detail_report, "request": AgedReceivablesRequest(
-        #     financial_year=FY,
-        #     aging_by="Due Date",
-        #     download_directory=DOWNDIR,
-        #     report_file_name="Aged Receivables Detail",
-        #     screenshot_path=SHOTS,
-        # ), "args": None},
+            {"name": "Aged Receivables Detail", "fn": download_aged_receivables_detail_report, "request": AgedReceivablesRequest(
+                financial_year=FY,
+                aging_by="Due Date",
+                download_directory=DOWNDIR,
+                report_file_name="Aged Receivables Detail",
+                screenshot_path=SHOTS,
+            ), "args": None},
 
-        # {"name": "Aged Payables Detail", "fn": download_aged_payables_detail_report, "request": AgedPayablesRequest(
-        #     financial_year=FY,
-        #     aging_by="Due Date",
-        #     download_directory=DOWNDIR,
-        #     report_file_name="Aged Payables Detail",
-        #     screenshot_path=SHOTS,
-        # ), "args": None},
+            {"name": "Aged Payables Detail", "fn": download_aged_payables_detail_report, "request": AgedPayablesRequest(
+                financial_year=FY,
+                aging_by="Due Date",
+                download_directory=DOWNDIR,
+                report_file_name="Aged Payables Detail",
+                screenshot_path=SHOTS,
+            ), "args": None},
 
-        # {"name": "General Ledger Detail", "fn": download_general_ledger_detail_report, "request": GeneralLedgerDetailRequest(
-        #     download_directory=DOWNDIR,
-        #     report_file_name="General Ledger Detail",
-        #     start_date=date(2024, 7, 1),
-        #     end_date=date(2025, 6, 30),
-        #     accounting_method="Cash",   # "Cash" (default) or "Accrual"
-        #     screenshot_path=SHOTS,
-        # ), "args": None},
+            {"name": "General Ledger Detail", "fn": download_general_ledger_detail_report, "request": GeneralLedgerDetailRequest(
+                download_directory=DOWNDIR,
+                report_file_name="General Ledger Detail",
+                start_date=date(2024, 7, 1),
+                end_date=date(2025, 6, 30),
+                accounting_method="Cash",   # "Cash" (default) or "Accrual"
+                screenshot_path=SHOTS,
+            ), "args": None},
 
-        # {"name": "Trial Balance", "fn": download_trial_balance_report, "request": TrialBalanceRequest(
-        #     download_directory=DOWNDIR,
-        #     report_file_name="Trial Balance",
-        #     end_date=date(2025, 6, 30),
-        #     accounting_method="Cash",   # "Cash" (default) or "Accrual"
-        #     screenshot_path=SHOTS,
-        # ), "args": None},
+            {"name": "Trial Balance", "fn": download_trial_balance_report, "request": TrialBalanceRequest(
+                download_directory=DOWNDIR,
+                report_file_name="Trial Balance",
+                end_date=date(2025, 6, 30),
+                accounting_method="Cash",   # "Cash" (default) or "Accrual"
+                screenshot_path=SHOTS,
+            ), "args": None},
 
-        # {"name": "GST Reconciliation", "fn": download_gst_reconciliation_report, "request": GstReconciliationRequest(
-        #     download_directory=DOWNDIR,
-        #     report_file_name="GST Reconciliation",
-        #     start_date=date(2024, 7, 1),
-        #     end_date=date(2025, 6, 30),
-        #     # export_format="pdf",      # "excel" (default, saves .xls) or "pdf"
-        #     screenshot_path=SHOTS,
-        # ), "args": None},
+            {"name": "GST Reconciliation", "fn": download_gst_reconciliation_report, "request": GstReconciliationRequest(
+                download_directory=DOWNDIR,
+                report_file_name="GST Reconciliation",
+                start_date=date(2024, 7, 1),
+                end_date=date(2025, 6, 30),
+                # export_format="pdf",      # "excel" (default, saves .xls) or "pdf"
+                screenshot_path=SHOTS,
+            ), "args": None},
 
-        {"name": "Bank Reconciliation", "fn": download_bank_reconciliation_report, "request": BankReconciliationRequest(
-            bank_account="(all accounts)",   # placeholder; replaced per account by the runner
-            download_directory=DOWNDIR,
-            report_file_name="Bank Reconciliation",
-            start_date=date(2024, 7, 1),
-            end_date=date(2025, 6, 30),
-            screenshot_path=SHOTS,
-        ), "args": "all"},
-    ]
+            {"name": "Profit and Loss", "fn": download_profit_and_loss_report, "request": ProfitAndLossRequest(
+                download_directory=DOWNDIR,
+                report_file_name="Profit and Loss",
+                start_date=date(2024, 7, 1),
+                end_date=date(2025, 6, 30),
+                # comparison=ComparisonPeriod("Month", 3),   # optional; needs ComparisonPeriod imported
+                screenshot_path=SHOTS,
+            ), "args": None},
+
+            {"name": "Aged Receivables Summary", "fn": download_aged_receivables_summary_report, "request": AgedReceivablesSummaryRequest(
+                financial_year=FY,
+                aging_by="Due Date",
+                download_directory=DOWNDIR,
+                report_file_name="Aged Receivables Summary",
+                # ageing_period="1 month",   # optional; omit for the report default
+                screenshot_path=SHOTS,
+            ), "args": None},
+
+            {"name": "Aged Payables Summary", "fn": download_aged_payables_summary_report, "request": AgedPayablesSummaryRequest(
+                financial_year=FY,
+                aging_by="Due Date",
+                download_directory=DOWNDIR,
+                report_file_name="Aged Payables Summary",
+                # ageing_period="1 month",   # optional; omit for the report default
+                screenshot_path=SHOTS,
+            ), "args": None},
+
+            {"name": "Account Transactions", "fn": download_account_transactions_report, "request": AccountTransactionsRequest(
+                download_directory=DOWNDIR,
+                report_file_name="Account Transactions",
+                start_date=date(2024, 7, 1),
+                end_date=date(2025, 6, 30),
+                # accounts=["1-0100 - Operating"],   # defaults to "All"
+                screenshot_path=SHOTS,
+            ), "args": None},
+
+            # {"name": "Leave Balances", "fn": download_leave_balances_report, "request": LeaveBalancesRequest(
+            #     download_directory=DOWNDIR,
+            #     report_file_name="Leave Balances",
+            #     end_date=date(2025, 6, 30),   # "as at" date; or financial_year=FY
+            #     screenshot_path=SHOTS,
+            # ), "args": None},
+
+            # {"name": "Payroll Employee Summary", "fn": download_payroll_employee_summary_report, "request": PayrollEmployeeSummaryRequest(
+            #     download_directory=DOWNDIR,
+            #     report_file_name="Payroll Employee Summary",
+            #     start_date=date(2024, 7, 1),
+            #     end_date=date(2025, 6, 30),
+            #     screenshot_path=SHOTS,
+            # ), "args": None},
+
+            # {"name": "Payroll Activity Summary", "fn": download_payroll_activity_summary_report, "request": PayrollActivitySummaryRequest(
+            #     download_directory=DOWNDIR,
+            #     report_file_name="Payroll Activity Summary",
+            #     start_date=date(2024, 7, 1),
+            #     end_date=date(2025, 6, 30),
+            #     screenshot_path=SHOTS,
+            # ), "args": None},
+
+            {"name": "Bank Reconciliation", "fn": download_bank_reconciliation_report, "request": BankReconciliationRequest(
+                bank_account="(all accounts)",   # placeholder; replaced per account by the runner
+                download_directory=DOWNDIR,
+                report_file_name="Bank Reconciliation",
+                start_date=date(2024, 7, 1),
+                end_date=date(2025, 6, 30),
+                screenshot_path=SHOTS,
+            ), "args": "all"},
+        ]
 
 #TODO: code below
     xero_url = "https://go.xero.com/Dashboard/default.aspx"

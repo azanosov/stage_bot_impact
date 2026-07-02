@@ -1,7 +1,7 @@
 """
 Module for downloading Profit and Loss reports from Xero Blue.
 
-Configures and downloads a Profit and Loss report: forces the accounting basis
+Configures and downloads a Profit and Loss report: forces the accounting method
 and applies any "show" options, enters the date range, optionally configures a
 comparison period, optionally sets an alternative report title, generates and
 exports the report (Excel or PDF), and confirms the file was saved.
@@ -37,7 +37,7 @@ How to call:
         report_file_name="profit_and_loss_2024",
         start_date=date(2023, 7, 1),
         end_date=date(2024, 6, 30),
-        # accounting_basis="Accrual",                  # "Accrual" (default) or "Cash"
+        # accounting_method="Cash",                    # "Cash" (default) or "Accrual"
         # comparison=ComparisonPeriod("Year", 1),      # or None
         # show_options={"Decimals": False},            # tri-state per label
         # alternative_report_title="P&L FY24",         # <= 100 chars
@@ -82,8 +82,8 @@ __all__ = [
 # --------------------------------------------------------------------
 _MAX_TITLE_LENGTH = 100   # Xero's report-title input maxlength
 
-# Accounting basis: request value (visible label) -> shared option id.
-AccountingBasis = Literal["Accrual", "Cash"]
+# Accounting Method: request value (visible label) -> shared option id.
+AccountingMethod = Literal["Accrual", "Cash"]
 _ACCOUNTING_OPTION_IDS: dict[str, str] = {
     "Accrual": config.SH_BASIS_ACCRUAL_ID,
     "Cash": config.SH_BASIS_CASH_ID,
@@ -103,7 +103,7 @@ _KNOWN_SHOW_OPTIONS: frozenset[str] = frozenset(
     label.lower()
     for label in (
         "Zero balance or activity",
-        "Accounting basis",
+        "Accounting Basis",
         "Account codes",
         "Decimals",
         "Percentage of trading income",
@@ -166,7 +166,7 @@ class ProfitAndLossRequest:
         start_date:               Range start (``datetime.date``); falls back to FY.
         end_date:                 Range end (``datetime.date``); falls back to FY.
         financial_year:           FY end year (e.g. 2024); fallback when a date is omitted.
-        accounting_basis:         "Accrual" (default) or "Cash". Always set.
+        accounting_method:         "Cash" (default) or "Accrual". Always set.
         show_options:             Tri-state {label: bool}. True ensures checked,
                                   False ensures unchecked, omitted leaves as-is.
                                   Unknown labels are warned about and skipped.
@@ -181,7 +181,7 @@ class ProfitAndLossRequest:
     start_date: date | None = None
     end_date: date | None = None
     financial_year: int | None = None
-    accounting_basis: AccountingBasis = "Accrual"
+    accounting_method: AccountingMethod = "Cash"
     show_options: dict[str, bool] | None = None
     comparison: ComparisonPeriod | None = None
     alternative_report_title: str | None = None
@@ -194,10 +194,10 @@ class ProfitAndLossRequest:
         common.validate_non_empty_str(self.download_directory, "download_directory")
         common.validate_non_empty_str(self.report_file_name, "report_file_name")
 
-        if self.accounting_basis not in get_args(AccountingBasis):
+        if self.accounting_method not in get_args(AccountingBasis):
             raise DataValidationError(
-                f"accounting_basis must be one of {get_args(AccountingBasis)}, "
-                f"got {self.accounting_basis!r}"
+                f"accounting_method must be one of {get_args(AccountingBasis)}, "
+                f"got {self.accounting_method!r}"
             )
         if self.export_format not in get_args(ExportFormat):
             raise DataValidationError(
@@ -264,7 +264,7 @@ class ProfitAndLossRequest:
 
     @property
     def basis_option_id(self) -> str:
-        return _ACCOUNTING_OPTION_IDS[self.accounting_basis]
+        return _ACCOUNTING_OPTION_IDS[self.accounting_method]
 
     @property
     def export_menu_id(self) -> str:
@@ -286,7 +286,7 @@ class ProfitAndLossRequest:
             "Start Date": start_display,
             "End Date": end_display,
             "Financial Year": self.financial_year if self.financial_year is not None else "(from dates)",
-            "Accounting Basis": self.accounting_basis,
+            "Accounting Method": self.accounting_method,
             "Show Options": self.show_options if self.show_options else "(unchanged)",
             "Comparison": comparison_display,
             "Report Title": self.alternative_report_title or "(default)",
@@ -307,7 +307,7 @@ def download_profit_and_loss_report(browser, request: ProfitAndLossRequest) -> N
     Download a Profit and Loss report from Xero Blue.
 
     Steps, in order (each returns; none calls the next):
-        STEP 1 - configure report settings (accounting basis + show options)
+        STEP 1 - configure report settings (Accounting Method + show options)
         STEP 2 - enter the report date range
         STEP 3 - configure the comparison period (optional)
         STEP 4 - set an alternative report title (optional)
@@ -325,7 +325,7 @@ def download_profit_and_loss_report(browser, request: ProfitAndLossRequest) -> N
         for line in request.summary_lines():
             logger.info(line)
 
-        logger.info("STEP 1: Configuring report settings (accounting basis and show options)...")
+        logger.info("STEP 1: Configuring report settings (Accounting Method and show options)...")
         configure_report_settings(browser, request)
         logger.info("STEP 1 COMPLETED: report settings configured")
 
@@ -347,7 +347,7 @@ def download_profit_and_loss_report(browser, request: ProfitAndLossRequest) -> N
 
 
 def configure_report_settings(browser, request: ProfitAndLossRequest) -> None:
-    """Open the More menu, force the accounting basis, apply any show options as
+    """Open the More menu, force the Accounting Method, apply any show options as
     desired end-states, and close the menu. (Basis + show options are batched
     under a single More session, so this does not use the shared basis helper.)"""
     timeout = common.DEFAULT_ELEMENT_TIMEOUT
@@ -355,8 +355,8 @@ def configure_report_settings(browser, request: ProfitAndLossRequest) -> None:
     logger.info("Opening 'More' settings menu...")
     browser.click_element(config.SH_MORE_BUTTON, timeout=timeout)
 
-    # Force the accounting basis (idempotent - skips the click if already selected).
-    logger.info(f"Selecting accounting basis: '{request.accounting_basis}'")
+    # Force the Accounting Method (idempotent - skips the click if already selected).
+    logger.info(f"Selecting Accounting Method: '{request.accounting_method}'")
     common.ensure_pickitem_selected(browser, request.basis_option_id, timeout)
 
     # Apply show options as desired end-states.
