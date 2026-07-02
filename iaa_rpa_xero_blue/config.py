@@ -387,6 +387,11 @@ NAV_DASHBOARD_LINK = "xpath://a[normalize-space(.)='Dashboard']"
 # ============================================================================
 # Report-centre SPA container. Stable id; present across all report-centre tabs.
 REPORTS_CENTRE_PARENT = "xpath://div[@id='report-centre-parent']"
+# New-UI "Reporting" nav button: a collapsed disclosure menu that holds the
+# "All reports" link. It must be opened before that link is interactable.
+# Anchored on aria-controls (the id of the sub-nav it toggles) rather than the
+# visible "Reporting" text, which may localise.
+REPORTS_REPORTING_MENU_BUTTON = "xpath://button[@aria-controls='reporting-sub-nav']"
 # New-UI "All reports" nav link.
 REPORTS_ALL_REPORTS_LINK = "xpath://li/a[span[normalize-space(text())='All reports']]"
 # Legacy fallback: Accounting menu -> Reports (unverified against a capture).

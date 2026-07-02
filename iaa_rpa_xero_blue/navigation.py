@@ -73,6 +73,8 @@ def navigate_to_all_reports_page(browser) -> None:
     """
     # Primary: new UI.
     try:
+        browser.click_element(config.REPORTS_REPORTING_MENU_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT)
+        logger.info("Opened the Reporting menu")
         browser.click_element(config.REPORTS_ALL_REPORTS_LINK, timeout=common.DEFAULT_ELEMENT_TIMEOUT)
         if browser.does_page_contain_element(config.REPORTS_CENTRE_PARENT, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
             logger.info("Navigated to 'All Reports' page")

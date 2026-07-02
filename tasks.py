@@ -5,6 +5,8 @@ from datetime import date
 from dataclasses import replace
 from RPA.MFA import MFA
 
+import os
+
 # TODO: remove logging code below once development is over
 import logging
 
