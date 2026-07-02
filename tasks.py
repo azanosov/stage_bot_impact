@@ -96,54 +96,54 @@ def impact_main() -> None:
     SHOTS = os.path.join(DOWNDIR, "screenshots")   # or just: SHOTS = DOWNDIR
 
     reports_to_process = [
-        {"name": "Activity Statement", "fn": download_activity_statement_report, "request": ActivityStatementRequest(
-            period=StatementPeriod("September", 2025),   # StatementPeriod, not a tuple
-            download_directory=DOWNDIR,
-            report_file_name="Activity Statement",
-            screenshot_path=SHOTS,
-        ), "args": None},
+        # {"name": "Activity Statement", "fn": download_activity_statement_report, "request": ActivityStatementRequest(
+        #     period=StatementPeriod("September", 2025),   # StatementPeriod, not a tuple
+        #     download_directory=DOWNDIR,
+        #     report_file_name="Activity Statement",
+        #     screenshot_path=SHOTS,
+        # ), "args": None},
 
-        {"name": "Aged Receivables Detail", "fn": download_aged_receivables_detail_report, "request": AgedReceivablesRequest(
-            financial_year=FY,
-            aging_by="Due Date",
-            download_directory=DOWNDIR,
-            report_file_name="Aged Receivables Detail",
-            screenshot_path=SHOTS,
-        ), "args": None},
+        # {"name": "Aged Receivables Detail", "fn": download_aged_receivables_detail_report, "request": AgedReceivablesRequest(
+        #     financial_year=FY,
+        #     aging_by="Due Date",
+        #     download_directory=DOWNDIR,
+        #     report_file_name="Aged Receivables Detail",
+        #     screenshot_path=SHOTS,
+        # ), "args": None},
 
-        {"name": "Aged Payables Detail", "fn": download_aged_payables_detail_report, "request": AgedPayablesRequest(
-            financial_year=FY,
-            aging_by="Due Date",
-            download_directory=DOWNDIR,
-            report_file_name="Aged Payables Detail",
-            screenshot_path=SHOTS,
-        ), "args": None},
+        # {"name": "Aged Payables Detail", "fn": download_aged_payables_detail_report, "request": AgedPayablesRequest(
+        #     financial_year=FY,
+        #     aging_by="Due Date",
+        #     download_directory=DOWNDIR,
+        #     report_file_name="Aged Payables Detail",
+        #     screenshot_path=SHOTS,
+        # ), "args": None},
 
-        {"name": "General Ledger Detail", "fn": download_general_ledger_detail_report, "request": GeneralLedgerDetailRequest(
-            download_directory=DOWNDIR,
-            report_file_name="General Ledger Detail",
-            start_date=date(2024, 7, 1),
-            end_date=date(2025, 6, 30),
-            accounting_method="Cash",   # "Cash" (default) or "Accrual"
-            screenshot_path=SHOTS,
-        ), "args": None},
+        # {"name": "General Ledger Detail", "fn": download_general_ledger_detail_report, "request": GeneralLedgerDetailRequest(
+        #     download_directory=DOWNDIR,
+        #     report_file_name="General Ledger Detail",
+        #     start_date=date(2024, 7, 1),
+        #     end_date=date(2025, 6, 30),
+        #     accounting_method="Cash",   # "Cash" (default) or "Accrual"
+        #     screenshot_path=SHOTS,
+        # ), "args": None},
 
-        {"name": "Trial Balance", "fn": download_trial_balance_report, "request": TrialBalanceRequest(
-            download_directory=DOWNDIR,
-            report_file_name="Trial Balance",
-            end_date=date(2025, 6, 30),
-            accounting_method="Cash",   # "Cash" (default) or "Accrual"
-            screenshot_path=SHOTS,
-        ), "args": None},
+        # {"name": "Trial Balance", "fn": download_trial_balance_report, "request": TrialBalanceRequest(
+        #     download_directory=DOWNDIR,
+        #     report_file_name="Trial Balance",
+        #     end_date=date(2025, 6, 30),
+        #     accounting_method="Cash",   # "Cash" (default) or "Accrual"
+        #     screenshot_path=SHOTS,
+        # ), "args": None},
 
-        {"name": "GST Reconciliation", "fn": download_gst_reconciliation_report, "request": GstReconciliationRequest(
-            download_directory=DOWNDIR,
-            report_file_name="GST Reconciliation",
-            start_date=date(2024, 7, 1),
-            end_date=date(2025, 6, 30),
-            # export_format="pdf",      # "excel" (default, saves .xls) or "pdf"
-            screenshot_path=SHOTS,
-        ), "args": None},
+        # {"name": "GST Reconciliation", "fn": download_gst_reconciliation_report, "request": GstReconciliationRequest(
+        #     download_directory=DOWNDIR,
+        #     report_file_name="GST Reconciliation",
+        #     start_date=date(2024, 7, 1),
+        #     end_date=date(2025, 6, 30),
+        #     # export_format="pdf",      # "excel" (default, saves .xls) or "pdf"
+        #     screenshot_path=SHOTS,
+        # ), "args": None},
 
         {"name": "Bank Reconciliation", "fn": download_bank_reconciliation_report, "request": BankReconciliationRequest(
             bank_account="(all accounts)",   # placeholder; replaced per account by the runner
@@ -173,8 +173,20 @@ def impact_main() -> None:
     
     browser = SeleniumBrowser(
         use_existing_profile=True,
-        profile_directory="Default",   # or "Profile 1" — whichever has Xero logged in
+        profile_directory="Default",
         copy_profile_to_temp=True,
+        chrome_args=[
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--start-maximized",
+            "--no-first-run",
+            "--no-default-browser-check",
+            "--disable-features=RestoreSession,Translate,CalculateNativeWinOcclusion",
+            "--disable-backgrounding-occluded-windows",
+            "--disable-renderer-backgrounding",
+            "--disable-background-timer-throttling",
+        ],
     )
 
     clients = [
@@ -203,18 +215,16 @@ def impact_main() -> None:
     ]
     
 
-    try:
-        with ProcessLogger("Login to Xero", logger):
-            xero_blue_login(
-                browser=browser,
-                email=creds.username,
-                password=creds.password,
-                otp=otp_code,
-                xero_blue_url=xero_url,
-                payroll_url=payroll_url
-            )
-    except Exception:
-         logger.exception("Login to Xero failed")
+
+    xero_blue_login(
+        browser=browser,
+        email=creds.username,
+        password=creds.password,
+        otp=otp_code,
+        xero_blue_url=xero_url,
+        payroll_url=payroll_url
+    )
+
     
     #for client in clients:
     #switch_client(browser, "R & R FARAH PTY LTD")
