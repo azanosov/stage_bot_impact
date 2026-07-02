@@ -193,6 +193,27 @@ def verify_saved_file(path: str) -> None:
     if not os.path.isfile(path):
         raise DownloadError(f"Expected export file was not saved: {path}")
 
+# robocorp.windows parses a bare " and " / " or " inside a locator string as a
+# condition combiner, so a window title containing one (e.g. "Profit and Loss")
+# would be split into two conditions and never match. Replaced with a regex
+# wildcard so the whole title stays a single regex condition.
+_LOCATOR_KEYWORDS = (" and ", " or ")
+ 
+ 
+def chrome_window_locator(window_title: str) -> str:
+    """Build the robocorp.windows regex locator for the Chrome window whose tab
+    title contains ``window_title``, safe for titles that contain robocorp
+    locator keywords.
+ 
+    e.g. "Profit and Loss" -> 'regex:.*Profit.*Loss.* - Google Chrome'
+         "Trial Balance"   -> 'regex:.*Trial Balance.* - Google Chrome'
+    """
+    safe = window_title
+    for kw in _LOCATOR_KEYWORDS:
+        safe = safe.replace(kw, ".*")
+    return f"regex:.*{safe}.* - Google Chrome"
+
+
 
 # ============================================================================
 # Audit screenshot (best effort - must never abort the run)

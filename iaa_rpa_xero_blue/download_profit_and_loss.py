@@ -194,9 +194,9 @@ class ProfitAndLossRequest:
         common.validate_non_empty_str(self.download_directory, "download_directory")
         common.validate_non_empty_str(self.report_file_name, "report_file_name")
 
-        if self.accounting_method not in get_args(AccountingBasis):
+        if self.accounting_method not in get_args(AccountingMethod):
             raise DataValidationError(
-                f"accounting_method must be one of {get_args(AccountingBasis)}, "
+                f"accounting_method must be one of {get_args(AccountingMethod)}, "
                 f"got {self.accounting_method!r}"
             )
         if self.export_format not in get_args(ExportFormat):
@@ -480,7 +480,7 @@ def generate_and_export_report(browser, request: ProfitAndLossRequest) -> None:
     dest_path = request.dest_path
     logger.info(f"Handling file save dialog - saving to: '{dest_path}'")
     handle_chrome_save_as_dialog(
-        window_locator=f"regex:.*{request.window_title}.* - Google Chrome",
+        window_locator=common.chrome_window_locator(request.window_title),
         dest_path=dest_path,
     )
 

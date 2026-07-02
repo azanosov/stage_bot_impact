@@ -289,7 +289,7 @@ def generate_and_export_report(browser, request: TrialBalanceRequest) -> None:
     dest_path = request.dest_path
     logger.info(f"Handling file save dialog - saving to: '{dest_path}'")
     handle_chrome_save_as_dialog(
-        window_locator=f"regex:.*{request.window_title}.* - Google Chrome",
+        window_locator=common.chrome_window_locator(request.window_title),
         dest_path=dest_path,
     )
 
