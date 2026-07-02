@@ -33,6 +33,7 @@ from iaa_rpa_utils.credentials import get_credential
 from iaa_rpa_xero_blue.login import xero_blue_login
 from iaa_rpa_xero_blue.navigation import navigate_to_all_reports_page, navigate_to_dashboard_page, navigate_to_report_page
 from iaa_rpa_xero_blue.logout import xero_blue_logout
+from iaa_rpa_xero_blue.switch_client import switch_client
 
 
 from iaa_rpa_xero_blue.download_activity_statement import (
@@ -183,6 +184,30 @@ def impact_main() -> None:
         copy_profile_to_temp=True,
     )
 
+    clients = [
+        "First Boston Securities Pty Ltd",
+        "CHENG HOLDINGS TRUST",
+        "Hunter Family Discretionary Trust",
+        "Revolvv Pty Ltd",
+        "Property Home Base Pty Ltd",
+        "Heyday Furniture Pty. Ltd",
+        "JIAHE YUAN PTY LIMITED",
+        "R & R FARAH PTY LTD",
+        "LETS CELEBRATE PTY LTD",
+        "BRIGHTEN CONSTRUCTIONS PTY LTD",
+        "GOLDEN STAR BUILDING PTY LTD",
+        "PWM PTY LTD",
+        "MYSKY PTY LTD",
+        "Sim Lo Family Trust",
+        "Uplend",
+        "ETS Cattle Co Pty Ltd",
+        "TJS Contracting Pty Ltd",
+        "THE TRUSTEE FOR HUNTER UNIFIED FAMILY TRUST",
+        "CLARENDON HILL PTY LTD",
+        "BM Refrigeration Services",
+        "Environmental Land Management Pty Ltd",
+        "Brightcare Link Pty Ltd",
+    ]
     
 
     try:
@@ -198,30 +223,16 @@ def impact_main() -> None:
     except Exception:
          logger.exception("Login to Xero failed")
     
+    #for client in clients:
+    switch_client(browser, "R & R FARAH PTY LTD")
 
-    navigate_to_all_reports_page(browser)
-    navigate_to_dashboard_page(browser)
-    navigate_to_report_page(browser, "General Ledger Detail")
+    # navigate_to_all_reports_page(browser)
+    # navigate_to_dashboard_page(browser)
+    # navigate_to_report_page(browser, "General Ledger Detail")
 
-    xero_blue_logout(browser)
+    #xero_blue_logout(browser)
 
 
-    # try:
-    #     with ProcessLogger("Insight Login", logger):
-    #         xero_blue_login(
-    #             browser,
-    #             creds.username,
-    #             creds.password,
-    #             xero_url,
-    #             payroll_url,
-    #             xero_secret,
-    #             max_retry=1,
-    #             is_authentication_code_is_entered=False,
-    #             is_user_logged_in_to_xero=False  
-    #         )
-      
-    # except Exception:
-    #     logger.exception("Login to Xero failed")
 
 
     # try:
