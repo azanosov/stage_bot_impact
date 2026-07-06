@@ -33,10 +33,12 @@ from . import config
 logger = setup_logger(__name__)
 
 
+
 __all__ = [
     "navigate_to_dashboard_page",
     "navigate_to_all_reports_page",
     "navigate_to_report_page",
+    "navigate_to_invoices_page",
 ]
 
 
@@ -114,3 +116,29 @@ def navigate_to_report_page(browser, report_name: str) -> None:
         logger.info(f"Opened report: {report_name}")
     except ElementNotFoundError as e:
         raise NavigationError(f"Failed to navigate to {report_name} report: {e}") from e
+
+
+
+def navigate_to_invoices_page(browser) -> None:
+    """Reach the Invoices list page via the Sales (new UI) or Business (old UI)
+    menu. Raises NavigationError if the list (its search box) never appears."""
+    timeout = common.DEFAULT_ELEMENT_TIMEOUT
+
+    logger.info(f"Navigating to Invoices page...")
+    try:
+        if browser.does_page_contain_element(config.INV_NAV_SALES_BUTTON, timeout=timeout):
+            browser.click_element(config.INV_NAV_SALES_BUTTON, timeout=timeout)
+            browser.click_element(config.INV_NAV_INVOICES_LINK, timeout=timeout)
+            logger.info("Used new-UI navigation (Sales -> Invoices)")
+        else:
+            browser.click_element(config.INV_NAV_BUSINESS_BUTTON, timeout=timeout)
+            browser.click_element(config.INV_NAV_INVOICES_TAB, timeout=timeout)
+            logger.info("Used old-UI navigation (Business -> Invoices)")
+    except Exception as e:
+        logger.warning(f"Navigation to Invoices page failed: {e}")
+
+    if browser.does_page_contain_element(config.INV_SEARCH_INPUT, timeout=timeout):
+        logger.info("Invoices page reached")
+        return
+
+  

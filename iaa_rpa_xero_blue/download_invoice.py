@@ -9,9 +9,7 @@ to PDF.
 
 Separation of concerns:
     download_invoice(browser, request) does ONLY invoice processing and assumes
-    the browser is already on the Invoices list page. NAVIGATION is separate -
-    the caller/runner invokes navigate_to_invoices_page() once before a batch
-    and navigate_to_home_page() after, rather than re-navigating per invoice.
+    the browser is already on the Invoices list page.
 
 Drives the page through the SeleniumBrowser wrapper. Locators live in config.py
 (the INV_ section); shared behaviour lives in common.py.
@@ -19,8 +17,6 @@ Drives the page through the SeleniumBrowser wrapper. Locators live in config.py
 ERROR HANDLING: typed exceptions from ``iaa_rpa_utils.exceptions``:
   - DataValidationError - a request input failed validation
   - DataExtractionError - the invoice was not found, or its page did not open
-  - DownloadError       - the PDF did not land on disk
-  - NavigationError     - (navigation helpers) could not reach a page
 
 Output:
     Invoices are PDF only (Xero prints them; there is no format choice). The
@@ -29,17 +25,14 @@ Output:
 
 How to call:
     from download_invoice import (
-        InvoiceRequest, download_invoice,
-        navigate_to_invoices_page, navigate_to_home_page,
+        InvoiceRequest, download_invoice
     )
 
-    navigate_to_invoices_page(browser)          # caller navigates once
     download_invoice(browser, InvoiceRequest(
         invoice_number="INV-4140",
         download_directory=r"C:\\Invoices",
         report_file_name="INV-4140",            # -> INV-4140.pdf
     ))
-    navigate_to_home_page(browser)
 
 Failure behaviour:
     Errors are logged (by ``ProcessLogger``) and RE-RAISED.
@@ -54,8 +47,6 @@ from iaa_rpa_utils import ProcessLogger, setup_logger
 from iaa_rpa_utils.exceptions import (
     DataExtractionError,
     DataValidationError,
-    DownloadError,
-    NavigationError,
 )
 from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog, xpath_literal
 
@@ -66,16 +57,10 @@ from . import config
 logger = setup_logger(__name__)
 
 
-__all__ = [
-    "InvoiceRequest",
-    "download_invoice",
-    "navigate_to_invoices_page",
-    "navigate_to_home_page",
-]
+__all__ = ["InvoiceRequest", "download_invoice"]
 
 
 _PDF_EXT = ".pdf"
-_NAV_MAX_RETRIES = 3
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -132,47 +117,6 @@ class InvoiceRequest:
 
 
 # --------------------------------------------------------------------
-# Navigation (caller-invoked; text-located, dual UI)
-# --------------------------------------------------------------------
-def navigate_to_invoices_page(browser, max_retries: int = _NAV_MAX_RETRIES) -> None:
-    """Reach the Invoices list page via the Sales (new UI) or Business (old UI)
-    menu, retrying up to max_retries times. Raises NavigationError if the list
-    (its search box) never appears."""
-    timeout = common.DEFAULT_ELEMENT_TIMEOUT
-    for attempt in range(1, max_retries + 1):
-        logger.info(f"Navigating to Invoices page (attempt {attempt}/{max_retries})...")
-        try:
-            if browser.does_page_contain_element(config.INV_NAV_SALES_BUTTON, timeout=timeout):
-                browser.click_element(config.INV_NAV_SALES_BUTTON, timeout=timeout)
-                browser.click_element(config.INV_NAV_INVOICES_LINK, timeout=timeout)
-                logger.info("Used new-UI navigation (Sales -> Invoices)")
-            else:
-                browser.click_element(config.INV_NAV_BUSINESS_BUTTON, timeout=timeout)
-                browser.click_element(config.INV_NAV_INVOICES_TAB, timeout=timeout)
-                logger.info("Used old-UI navigation (Business -> Invoices)")
-        except Exception as e:
-            logger.warning(f"Navigation attempt {attempt} failed: {e}")
-
-        if browser.does_page_contain_element(config.INV_SEARCH_INPUT, timeout=timeout):
-            logger.info("Invoices list reached")
-            return
-
-    raise NavigationError(f"Could not reach the Invoices page after {max_retries} attempts")
-
-
-def navigate_to_home_page(browser) -> None:
-    """Return to the Home/dashboard page (new-UI Home link, old-UI Business
-    button as fallback)."""
-    timeout = common.DEFAULT_ELEMENT_TIMEOUT
-    if browser.does_page_contain_element(config.INV_NAV_HOME_LINK, timeout=timeout):
-        browser.click_element(config.INV_NAV_HOME_LINK, timeout=timeout)
-        logger.info("Returned home (new UI)")
-    else:
-        browser.click_element(config.INV_NAV_BUSINESS_BUTTON, timeout=timeout)
-        logger.info("Returned home via Business button (old UI)")
-
-
-# --------------------------------------------------------------------
 # Invoice processing (assumes already on the Invoices list page)
 # --------------------------------------------------------------------
 def download_invoice(browser, request: InvoiceRequest) -> None:
@@ -187,8 +131,7 @@ def download_invoice(browser, request: InvoiceRequest) -> None:
 
     Raises:
         Re-raises after ``ProcessLogger`` logs it. DataExtractionError if the
-        invoice is not found or its page does not open; DownloadError if the file
-        does not save.
+        invoice is not found or its page does not open.
     """
     with ProcessLogger("Xero Blue Download Invoice", logger):
         for line in request.summary_lines():
@@ -261,7 +204,7 @@ def print_invoice_to_pdf(browser, request: InvoiceRequest) -> None:
         dest_path=dest_path,
     )
 
-    common.verify_saved_file(dest_path)   # principle 10: confirm it actually landed
+    common.verify_saved_file(dest_path)  
     logger.info(f"Invoice PDF saved: '{dest_path}'")
 
     dismiss_mark_as_sent(browser)

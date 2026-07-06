@@ -1,4 +1,11 @@
 """
+This module has not been refactored.
+
+If you need the functionality provided by this module,
+please first contact Praveen Lobo and/or Alexander Zanosov.
+
+
+
 Module for creating and managing draft invoices in Xero.
 
 This module provides comprehensive functionality for automating invoice creation in Xero,

@@ -1,4 +1,12 @@
 """
+This module has not been refactored.
+
+If you need the functionality provided by this module,
+please first contact Praveen Lobo and/or Alexander Zanosov.
+
+
+
+
 Xero Practice Protect Login Module
 
 This module handles the complete login workflow for Xero Practice Protect, including:

@@ -50,8 +50,7 @@ How to call:
 
 Failure behaviour:
     Errors are logged (by ``ProcessLogger``) and RE-RAISED. No data, or a
-    requested account not found, raises the relevant typed exception; a file
-    that fails to save raises ``DownloadError``.
+    requested account not found, raises the relevant typed exception.
 """
 
 from __future__ import annotations
@@ -66,7 +65,6 @@ from iaa_rpa_utils import ProcessLogger, setup_logger
 from iaa_rpa_utils.exceptions import (
     DataExtractionError,
     DataValidationError,
-    DownloadError,
 )
 from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog, xpath_literal
 
@@ -250,8 +248,7 @@ def download_account_transactions_report(browser, request: AccountTransactionsRe
 
     Raises:
         Re-raises any exception after ``ProcessLogger`` has logged it.
-        DataExtractionError if there is no data or a requested account is absent;
-        DownloadError if the file fails to save.
+        DataExtractionError if there is no data or a requested account is absent.
     """
     with ProcessLogger("Xero Blue Download Account Transactions Report", logger):
         for line in request.summary_lines():
@@ -357,5 +354,5 @@ def update_and_export_report(browser, request: AccountTransactionsRequest) -> No
         dest_path=dest_path,
     )
 
-    common.verify_saved_file(dest_path)   # principle 10: confirm it actually landed
+    common.verify_saved_file(dest_path)
     logger.info(f"File successfully saved: '{dest_path}'")

@@ -1,3 +1,11 @@
+"""
+This module has not been refactored.
+
+If you need the functionality provided by this module,
+please first contact Praveen Lobo and/or Alexander Zanosov.
+"""
+
+
 from datetime import datetime
 # Selenium imports
 from selenium.webdriver.common.by import By

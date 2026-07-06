@@ -18,7 +18,6 @@ the sweep), this module raises the library's TYPED exceptions from
 ``iaa_rpa_utils.exceptions`` for its own checks:
   - DataValidationError - a request input failed validation
   - DataExtractionError - the client has no receivables data
-  - DownloadError       - the export file did not land on disk
 The ageing-method / ageing-kind dropdowns are driven by common.select_listbox_option,
 which raises RuntimeError if a (valid) option is absent on the page - kept
 identical to the other aged reports, per design.
@@ -56,8 +55,7 @@ How to call:
 
 Failure behaviour:
     Errors are logged (by ``ProcessLogger``) and RE-RAISED. No receivables data
-    raises ``DataExtractionError``; a file that fails to save raises
-    ``DownloadError``; invalid inputs raise ``DataValidationError``.
+    raises ``DataExtractionError``; invalid inputs raise ``DataValidationError``.
 """
 
 from __future__ import annotations
@@ -73,7 +71,6 @@ from iaa_rpa_utils import ProcessLogger, setup_logger
 from iaa_rpa_utils.exceptions import (
     DataExtractionError,
     DataValidationError,
-    DownloadError,
 )
 from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog
 
@@ -264,8 +261,7 @@ def download_aged_receivables_summary_report(browser, request: AgedReceivablesSu
 
     Raises:
         Re-raises any exception after ``ProcessLogger`` has logged it.
-        DataExtractionError if the client has no receivables data; DownloadError
-        if the file fails to save.
+        DataExtractionError if the client has no receivables data.
     """
     with ProcessLogger("Xero Blue Download Aged Receivables Summary Report", logger):
         for line in request.summary_lines():
@@ -390,5 +386,5 @@ def update_and_export_report(browser, request: AgedReceivablesSummaryRequest) ->
         dest_path=dest_path,
     )
 
-    common.verify_saved_file(dest_path)   # principle 10: confirm it actually landed
+    common.verify_saved_file(dest_path)
     logger.info(f"File successfully saved: '{dest_path}'")

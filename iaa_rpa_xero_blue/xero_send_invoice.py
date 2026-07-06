@@ -1,4 +1,11 @@
 """
+This module has not been refactored.
+
+If you need the functionality provided by this module,
+please first contact Praveen Lobo and/or Alexander Zanosov.
+
+
+
 Module: xero_send_invoice
 
 This module automates the process of sending invoices via email from Xero Blue.

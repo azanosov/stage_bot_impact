@@ -73,8 +73,7 @@ __all__ = [
 # Module constants (report-specific only; shared ones live in common)
 # --------------------------------------------------------------------
 # Export formats: format name -> (default format locator, legacy format locator,
-# saved extension). NOTE the Excel link yields .xls, not .xlsx. Google Sheets is
-# intentionally excluded (it opens Drive, not a local download).
+# saved extension). NOTE the Excel link yields .xls, not .xlsx.
 ExportFormat = Literal["excel", "pdf"]
 _EXPORT_FORMATS: dict[str, tuple[str, str, str]] = {
     "excel": (config.GSTR_FORMAT_EXCEL_DEFAULT, config.GSTR_FORMAT_EXCEL_LEGACY, ".xls"),

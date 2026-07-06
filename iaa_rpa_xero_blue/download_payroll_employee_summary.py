@@ -17,7 +17,6 @@ ERROR HANDLING: like leave balances and the other recently-added reports, this
 module raises the library's TYPED exceptions from ``iaa_rpa_utils.exceptions``:
   - DataValidationError - a request input failed validation
   - DataExtractionError - the client has no payroll data
-  - DownloadError       - the export file did not land on disk
 
 Period:
     A date range. `start_date`/`end_date` are the primary inputs
@@ -42,8 +41,7 @@ How to call:
 
 Failure behaviour:
     Errors are logged (by ``ProcessLogger``) and RE-RAISED. A client with no
-    payroll data raises ``DataExtractionError``; a file that fails to save
-    raises ``DownloadError``; invalid inputs raise ``DataValidationError``.
+    payroll data raises ``DataExtractionError``; invalid inputs raise ``DataValidationError``.
 """
 
 from __future__ import annotations
@@ -58,7 +56,6 @@ from iaa_rpa_utils import ProcessLogger, setup_logger
 from iaa_rpa_utils.exceptions import (
     DataExtractionError,
     DataValidationError,
-    DownloadError,
 )
 from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog
 
@@ -204,8 +201,7 @@ def download_payroll_employee_summary_report(browser, request: PayrollEmployeeSu
 
     Raises:
         Re-raises any exception after ``ProcessLogger`` has logged it.
-        DataExtractionError if the client has no payroll data; DownloadError if
-        the file fails to save.
+        DataExtractionError if the client has no payroll data.
     """
     with ProcessLogger("Xero Blue Download Payroll Employee Summary Report", logger):
         for line in request.summary_lines():
@@ -264,5 +260,5 @@ def update_and_export_report(browser, request: PayrollEmployeeSummaryRequest) ->
         dest_path=dest_path,
     )
 
-    common.verify_saved_file(dest_path)   # principle 10: confirm it actually landed
+    common.verify_saved_file(dest_path)
     logger.info(f"File successfully saved: '{dest_path}'")

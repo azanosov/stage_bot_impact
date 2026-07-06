@@ -1,3 +1,10 @@
+"""
+This module has not been refactored.
+
+If you need the functionality provided by this module,
+please first contact Praveen Lobo and/or Alexander Zanosov.
+"""
+
 from __future__ import annotations
 
 import os

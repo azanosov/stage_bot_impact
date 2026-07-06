@@ -247,8 +247,8 @@ def update_and_export_report(browser, request: GeneralLedgerDetailRequest) -> No
 
     # NOTE (consistency addition): the original GL module had no no-data guard.
     # Added here to match the other reports - the Export button only renders once
-    # the report has data, so its absence means "no data" (principle 4: stop
-    # rather than save nothing). Remove if GL is found to behave differently.
+    # the report has data, so its absence means "no data". 
+    # Remove if GL is found to behave differently.
     if not browser.does_page_contain_element(config.SH_EXPORT_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
         logger.warning("Export button not found - no General Ledger data available for this client")
         raise DataExtractionError("No General Ledger Detail data available for this client.")
@@ -272,5 +272,5 @@ def update_and_export_report(browser, request: GeneralLedgerDetailRequest) -> No
         dest_path=dest_path,
     )
 
-    common.verify_saved_file(dest_path)   # principle 10: confirm it actually landed
+    common.verify_saved_file(dest_path)
     logger.info(f"File successfully saved: '{dest_path}'")

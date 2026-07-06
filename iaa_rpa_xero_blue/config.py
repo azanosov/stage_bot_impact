@@ -1,7 +1,7 @@
 """
 Central locator registry for the Xero Blue report modules.
 
-ALL element locators live here (mandated). Every value is a SeleniumBrowser
+ALL element locators live here. Every value is a SeleniumBrowser
 wrapper locator string ("xpath:..." or "id:...").
 
 Templates contain a {placeholder} the caller fills with .format(); these are

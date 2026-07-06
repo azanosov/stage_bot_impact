@@ -280,5 +280,5 @@ def update_and_export_report(browser, request: AgedReceivablesRequest) -> None:
         dest_path=dest_path,
     )
 
-    common.verify_saved_file(dest_path)   # principle 10: confirm it actually landed
+    common.verify_saved_file(dest_path)
     logger.info(f"File successfully saved: '{dest_path}'")

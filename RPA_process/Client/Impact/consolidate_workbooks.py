@@ -9,11 +9,6 @@ formats and values - by driving the installed Excel application via COM
 automation (win32com). Because Excel itself performs the sheet copy, fidelity is
 exact, and both legacy ``.xls`` and modern ``.xlsx`` sources are read natively.
 
-This is the faithful-copy path on purpose: the consolidated workbook is reviewed
-and analysed by accountants, so the reports must look exactly as Xero exported
-them. Value-only approaches (pandas/openpyxl) cannot preserve that appearance and
-are deliberately not used here.
-
 SINGLE SOURCE -> SINGLE TARGET, ONE CALL:
     The function moves tabs from one source into one target. To consolidate many
     reports, the operator loops over their sources and calls this once per source;
