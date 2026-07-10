@@ -46,6 +46,7 @@ logger = setup_logger(__name__)
 
 class PopupType(Enum):
     """Types of popups that can be detected"""
+
     MODAL = "modal"
     DIALOG = "dialog"
     ALERT = "alert"
@@ -59,6 +60,7 @@ class PopupType(Enum):
 @dataclass
 class PopupDetectionResult:
     """Result of popup detection"""
+
     detected: bool
     popup_type: PopupType
     element: Optional[Any] = None
@@ -88,13 +90,11 @@ POPUP_SELECTORS = [
     "[class*='dialog']",
     "[class*='popup']",
     "[class*='overlay']",
-
     # Cookie banners
     "#cookie-banner",
     ".cookie-banner",
     "[class*='cookie']",
     "[id*='cookie']",
-
     # Notifications
     ".notification",
     ".toast",
@@ -111,7 +111,6 @@ CLOSE_BUTTON_SELECTORS = [
     "[role='button'][aria-label*='dismiss' i]",
     "[aria-label*='close' i]",
     "[aria-label*='dismiss' i]",
-
     # By class and ID
     ".close",
     ".dismiss",
@@ -119,11 +118,9 @@ CLOSE_BUTTON_SELECTORS = [
     ".dialog-close",
     "[class*='close']",
     "[class*='dismiss']",
-
     # By title
     "[title*='close' i]",
     "[title*='dismiss' i]",
-
     # Common button text
     "button:contains('Close')",
     "button:contains('Dismiss')",
@@ -131,7 +128,6 @@ CLOSE_BUTTON_SELECTORS = [
     "button:contains('×')",
     "a:contains('Close')",
     "a:contains('Dismiss')",
-
     # SVG close icons
     "svg[class*='close']",
     "svg[class*='dismiss']",
@@ -163,7 +159,9 @@ def _find_popup_elements_selenium(driver: WebDriver) -> List[WebElement]:
     return elements
 
 
-def _find_close_button_selenium(driver: WebDriver, popup_element: Optional[WebElement] = None) -> Optional[WebElement]:
+def _find_close_button_selenium(
+    driver: WebDriver, popup_element: Optional[WebElement] = None
+) -> Optional[WebElement]:
     """Find close button within popup or on page"""
     search_context = popup_element if popup_element else driver
 
@@ -177,7 +175,11 @@ def _find_close_button_selenium(driver: WebDriver, popup_element: Optional[WebEl
                         return elem
             # For :contains selectors, use XPath
             elif ":contains" in selector:
-                text = selector.split("'")[1] if "'" in selector else selector.split('"')[1]
+                text = (
+                    selector.split("'")[1]
+                    if "'" in selector
+                    else selector.split('"')[1]
+                )
                 tag = selector.split(":")[0]
                 xpath = f".//{tag}[contains(translate(text(), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), '{text.lower()}')]"
                 elements = search_context.find_elements(By.XPATH, xpath)
@@ -240,10 +242,13 @@ def _capture_screenshot_selenium(driver: WebDriver, output_dir: str = "output") 
         raise BrowserError(f"Screenshot capture failed: {e}") from e
 
 
-def _log_screenshot_to_robocorp(screenshot_path: str, description: str = "Popup detected"):
+def _log_screenshot_to_robocorp(
+    screenshot_path: str, description: str = "Popup detected"
+):
     """Log screenshot to Robocorp HTML log"""
     try:
         from RPA.core import notebook
+
         notebook.notebook_image(screenshot_path, description)
         logger.info(f"Screenshot logged to Robocorp: {description}")
     except ImportError:
@@ -274,7 +279,9 @@ def _ocr_with_pytesseract(image_path: str) -> str:
         logger.debug(f"Tesseract OCR extracted {len(text)} characters")
         return text
     except ImportError:
-        logger.warning("pytesseract not installed. Install with: pip install pytesseract pillow")
+        logger.warning(
+            "pytesseract not installed. Install with: pip install pytesseract pillow"
+        )
         return ""
     except Exception as e:
         logger.error(f"Tesseract OCR failed: {e}")
@@ -340,7 +347,12 @@ def _ocr_with_oracle_vision(image_path: str) -> str:
 # ============================================================================
 
 
-def _analyze_with_claude_vision(image_path: str, api_key: Optional[str] = None, max_retries: int = 3, model: str = "claude-3-5-sonnet-20241022") -> Dict[str, Any]:
+def _analyze_with_claude_vision(
+    image_path: str,
+    api_key: Optional[str] = None,
+    max_retries: int = 3,
+    model: str = "claude-3-5-sonnet-20241022",
+) -> Dict[str, Any]:
     """Analyze screenshot using Anthropic Claude Vision API with retry logic"""
     try:
         import anthropic
@@ -348,8 +360,14 @@ def _analyze_with_claude_vision(image_path: str, api_key: Optional[str] = None, 
         # Get API key from parameter or environment
         api_key = api_key or os.environ.get("ANTHROPIC_API_KEY")
         if not api_key:
-            logger.warning("Anthropic API key not provided. Set ANTHROPIC_API_KEY environment variable.")
-            return {"has_popup": False, "confidence": 0.0, "reasoning": "API key not available"}
+            logger.warning(
+                "Anthropic API key not provided. Set ANTHROPIC_API_KEY environment variable."
+            )
+            return {
+                "has_popup": False,
+                "confidence": 0.0,
+                "reasoning": "API key not available",
+            }
 
         client = anthropic.Anthropic(api_key=api_key)
 
@@ -394,8 +412,8 @@ Respond with a JSON object with these fields:
     "confidence": 0.0-1.0,
     "close_button_location": "description of where the close button is, if visible",
     "reasoning": "brief explanation of your determination"
-}"""
-                                }
+}""",
+                                },
                             ],
                         }
                     ],
@@ -407,39 +425,69 @@ Respond with a JSON object with these fields:
 
                 # Try to parse JSON response
                 import json
+
                 try:
                     result = json.loads(response_text)
-                    logger.info(f"Claude Vision analysis: popup={result.get('has_popup')}, confidence={result.get('confidence')}")
+                    logger.info(
+                        f"Claude Vision analysis: popup={result.get('has_popup')}, confidence={result.get('confidence')}"
+                    )
                     return result
                 except json.JSONDecodeError:
                     # If not valid JSON, extract key information
-                    has_popup = "true" in response_text.lower() or "popup" in response_text.lower()
+                    has_popup = (
+                        "true" in response_text.lower()
+                        or "popup" in response_text.lower()
+                    )
                     return {
                         "has_popup": has_popup,
                         "confidence": 0.5,
-                        "reasoning": response_text
+                        "reasoning": response_text,
                     }
 
-            except (anthropic.RateLimitError, anthropic.APIConnectionError, anthropic.InternalServerError) as e:
+            except (
+                anthropic.RateLimitError,
+                anthropic.APIConnectionError,
+                anthropic.InternalServerError,
+            ) as e:
                 last_exception = e
                 if attempt < max_retries - 1:
-                    wait_time = (2 ** attempt) * 1.0  # Exponential backoff: 1s, 2s, 4s
-                    logger.warning(f"Claude Vision API error (attempt {attempt + 1}/{max_retries}): {e}. Retrying in {wait_time}s...")
+                    wait_time = (2**attempt) * 1.0  # Exponential backoff: 1s, 2s, 4s
+                    logger.warning(
+                        f"Claude Vision API error (attempt {attempt + 1}/{max_retries}): {e}. Retrying in {wait_time}s..."
+                    )
                     time.sleep(wait_time)
                 else:
-                    logger.error(f"Claude Vision API failed after {max_retries} attempts: {e}")
+                    logger.error(
+                        f"Claude Vision API failed after {max_retries} attempts: {e}"
+                    )
             except anthropic.APIError as e:
                 # For other API errors (e.g., invalid request), don't retry
                 logger.error(f"Claude Vision API error: {e}")
-                return {"has_popup": False, "confidence": 0.0, "reasoning": f"API Error: {e}"}
+                return {
+                    "has_popup": False,
+                    "confidence": 0.0,
+                    "reasoning": f"API Error: {e}",
+                }
 
         # If all retries exhausted
-        logger.error(f"Claude Vision analysis failed after {max_retries} retries: {last_exception}")
-        return {"has_popup": False, "confidence": 0.0, "reasoning": f"Error after {max_retries} retries: {last_exception}"}
+        logger.error(
+            f"Claude Vision analysis failed after {max_retries} retries: {last_exception}"
+        )
+        return {
+            "has_popup": False,
+            "confidence": 0.0,
+            "reasoning": f"Error after {max_retries} retries: {last_exception}",
+        }
 
     except ImportError:
-        logger.warning("anthropic package not installed. Install with: pip install anthropic")
-        return {"has_popup": False, "confidence": 0.0, "reasoning": "Anthropic SDK not available"}
+        logger.warning(
+            "anthropic package not installed. Install with: pip install anthropic"
+        )
+        return {
+            "has_popup": False,
+            "confidence": 0.0,
+            "reasoning": "Anthropic SDK not available",
+        }
     except Exception as e:
         logger.error(f"Claude Vision analysis failed: {e}")
         return {"has_popup": False, "confidence": 0.0, "reasoning": f"Error: {e}"}
@@ -454,7 +502,9 @@ def _close_with_button(driver: WebDriver, close_button: WebElement) -> bool:
     """Attempt to close popup by clicking close button"""
     try:
         # Scroll into view
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", close_button)
+        driver.execute_script(
+            "arguments[0].scrollIntoView({block: 'center'});", close_button
+        )
         time.sleep(0.2)
 
         # Try regular click
@@ -622,7 +672,7 @@ class PopupHandler:
             return PopupDetectionResult(
                 detected=False,
                 popup_type=PopupType.UNKNOWN,
-                detection_method="dom_inspection"
+                detection_method="dom_inspection",
             )
 
         logger.info(f"Found {len(popup_elements)} potential popup elements")
@@ -631,9 +681,13 @@ class PopupHandler:
         screenshot_path = None
         if self.capture_screenshots:
             try:
-                screenshot_path = _capture_screenshot_selenium(driver, self.screenshot_dir)
+                screenshot_path = _capture_screenshot_selenium(
+                    driver, self.screenshot_dir
+                )
                 if self.log_to_robocorp:
-                    _log_screenshot_to_robocorp(screenshot_path, "Popup detected - analyzing")
+                    _log_screenshot_to_robocorp(
+                        screenshot_path, "Popup detected - analyzing"
+                    )
             except Exception as e:
                 logger.warning(f"Screenshot capture failed: {e}")
 
@@ -641,7 +695,9 @@ class PopupHandler:
         ai_result = None
         if self.use_ai and screenshot_path:
             logger.info("Analyzing screenshot with Claude Vision AI")
-            ai_result = _analyze_with_claude_vision(screenshot_path, self.anthropic_api_key, model=self.anthropic_model)
+            ai_result = _analyze_with_claude_vision(
+                screenshot_path, self.anthropic_api_key, model=self.anthropic_model
+            )
 
             if not ai_result.get("has_popup", False):
                 logger.info("AI analysis: No blocking popup detected")
@@ -652,7 +708,7 @@ class PopupHandler:
                     detection_method="ai_analysis",
                     screenshot_path=screenshot_path,
                     ai_analysis=ai_result.get("reasoning"),
-                    confidence=ai_result.get("confidence", 0.0)
+                    confidence=ai_result.get("confidence", 0.0),
                 )
 
         # Step 4: OCR text extraction (fallback or supplementary)
@@ -703,7 +759,9 @@ class PopupHandler:
             ocr_text=ocr_text,
         )
 
-    def _close_popup_selenium(self, driver: WebDriver, detection_result: PopupDetectionResult) -> bool:
+    def _close_popup_selenium(
+        self, driver: WebDriver, detection_result: PopupDetectionResult
+    ) -> bool:
         """Close popup using various strategies"""
         logger.info("Attempting to close popup")
 
@@ -740,7 +798,7 @@ class PopupHandler:
     def check_and_close_web(
         self,
         driver: Union[WebDriver, "PlaywrightBrowser"],
-        detection_mode: Literal["smart", "dom_only", "ai_only"] = "smart"
+        detection_mode: Literal["smart", "dom_only", "ai_only"] = "smart",
     ) -> PopupDetectionResult:
         """
         Check for web popups and close them (Selenium or Playwright)
@@ -790,14 +848,18 @@ class PopupHandler:
                     return result
 
                 # Popup detected, attempt to close
-                logger.info(f"Popup detected: type={result.popup_type.value}, confidence={result.confidence}")
+                logger.info(
+                    f"Popup detected: type={result.popup_type.value}, confidence={result.confidence}"
+                )
                 closed = self._close_popup_selenium(driver, result)
 
                 if closed:
                     logger.info("Popup successfully closed")
                     return result
                 else:
-                    logger.warning(f"Failed to close popup (attempt {attempt}/{self.max_attempts})")
+                    logger.warning(
+                        f"Failed to close popup (attempt {attempt}/{self.max_attempts})"
+                    )
                     last_error = "Failed to close popup with all strategies"
 
                     if attempt < self.max_attempts:
@@ -805,7 +867,9 @@ class PopupHandler:
                         continue
 
             except Exception as e:
-                logger.error(f"Error during popup handling (attempt {attempt}/{self.max_attempts}): {e}")
+                logger.error(
+                    f"Error during popup handling (attempt {attempt}/{self.max_attempts}): {e}"
+                )
                 last_error = str(e)
 
                 if attempt < self.max_attempts:
@@ -813,20 +877,24 @@ class PopupHandler:
                     continue
 
         # All attempts failed
-        error_msg = f"Failed to handle popup after {self.max_attempts} attempts: {last_error}"
+        error_msg = (
+            f"Failed to handle popup after {self.max_attempts} attempts: {last_error}"
+        )
         logger.error(error_msg)
 
         if self.on_failure == "raise":
             raise RetryExhaustedError(error_msg)
         else:
-            logger.warning(f"Continuing despite popup handling failure (on_failure={self.on_failure})")
+            logger.warning(
+                f"Continuing despite popup handling failure (on_failure={self.on_failure})"
+            )
             return PopupDetectionResult(
-                detected=True,
-                popup_type=PopupType.UNKNOWN,
-                detection_method="failed"
+                detected=True, popup_type=PopupType.UNKNOWN, detection_method="failed"
             )
 
-    def _check_and_close_playwright(self, playwright_driver: "PlaywrightBrowser") -> PopupDetectionResult:
+    def _check_and_close_playwright(
+        self, playwright_driver: "PlaywrightBrowser"
+    ) -> PopupDetectionResult:
         """Check and close popups using Playwright (sync)"""
         logger.info("Playwright popup handling - converting to Selenium-like approach")
 
@@ -835,31 +903,41 @@ class PopupHandler:
         try:
             from playwright.sync_api import Page
 
-            page = playwright_driver.page if hasattr(playwright_driver, "page") else playwright_driver
+            page = (
+                playwright_driver.page
+                if hasattr(playwright_driver, "page")
+                else playwright_driver
+            )
 
             # Take screenshot
             screenshot_path = None
             if self.capture_screenshots:
                 os.makedirs(self.screenshot_dir, exist_ok=True)
                 timestamp = int(time.time() * 1000)
-                screenshot_path = os.path.join(self.screenshot_dir, f"popup_screenshot_{timestamp}.png")
+                screenshot_path = os.path.join(
+                    self.screenshot_dir, f"popup_screenshot_{timestamp}.png"
+                )
                 page.screenshot(path=screenshot_path)
                 logger.info(f"Screenshot captured: {screenshot_path}")
 
                 if self.log_to_robocorp:
-                    _log_screenshot_to_robocorp(screenshot_path, "Popup detected (Playwright)")
+                    _log_screenshot_to_robocorp(
+                        screenshot_path, "Popup detected (Playwright)"
+                    )
 
             # AI analysis
             ai_result = None
             if self.use_ai and screenshot_path:
-                ai_result = _analyze_with_claude_vision(screenshot_path, self.anthropic_api_key, model=self.anthropic_model)
+                ai_result = _analyze_with_claude_vision(
+                    screenshot_path, self.anthropic_api_key, model=self.anthropic_model
+                )
 
                 if not ai_result.get("has_popup", False):
                     return PopupDetectionResult(
                         detected=False,
                         popup_type=PopupType.UNKNOWN,
                         detection_method="ai_analysis",
-                        screenshot_path=screenshot_path
+                        screenshot_path=screenshot_path,
                     )
 
             # Try to find and close popup
@@ -874,15 +952,19 @@ class PopupHandler:
                         # Try to find close button
                         for close_sel in CLOSE_BUTTON_SELECTORS[:10]:
                             try:
-                                close_btn = element.query_selector(close_sel.split(":")[0])  # Simplified
+                                close_btn = element.query_selector(
+                                    close_sel.split(":")[0]
+                                )  # Simplified
                                 if close_btn and close_btn.is_visible():
                                     close_btn.click()
-                                    logger.info("Closed popup with close button (Playwright)")
+                                    logger.info(
+                                        "Closed popup with close button (Playwright)"
+                                    )
                                     return PopupDetectionResult(
                                         detected=True,
                                         popup_type=PopupType.MODAL,
                                         detection_method="playwright",
-                                        screenshot_path=screenshot_path
+                                        screenshot_path=screenshot_path,
                                     )
                             except:
                                 continue
@@ -894,7 +976,7 @@ class PopupHandler:
                             detected=True,
                             popup_type=PopupType.MODAL,
                             detection_method="playwright",
-                            screenshot_path=screenshot_path
+                            screenshot_path=screenshot_path,
                         )
                 except:
                     continue
@@ -903,7 +985,7 @@ class PopupHandler:
                 return PopupDetectionResult(
                     detected=False,
                     popup_type=PopupType.UNKNOWN,
-                    detection_method="playwright"
+                    detection_method="playwright",
                 )
 
         except Exception as e:
@@ -939,11 +1021,9 @@ class PopupHandler:
                 {"name": "*Warning*"},
                 {"name": "*Alert*"},
                 {"name": "*Information*"},
-
                 # Permission prompts
                 {"name": "*User Account Control*"},
                 {"name": "*Windows Security*"},
-
                 # Application alerts
                 {"class": "#32770"},  # Dialog class
                 {"class": "MozillaDialogClass"},
@@ -971,18 +1051,22 @@ class PopupHandler:
                             try:
                                 screenshot_path = os.path.join(
                                     self.screenshot_dir,
-                                    f"windows_popup_{int(time.time()*1000)}.png"
+                                    f"windows_popup_{int(time.time()*1000)}.png",
                                 )
                                 desktop.screenshot(screenshot_path)
                                 if self.log_to_robocorp:
-                                    _log_screenshot_to_robocorp(screenshot_path, f"Windows popup: {window.name}")
+                                    _log_screenshot_to_robocorp(
+                                        screenshot_path, f"Windows popup: {window.name}"
+                                    )
                             except Exception as e:
                                 logger.warning(f"Windows screenshot failed: {e}")
 
                         # Try to close window
                         # Strategy 1: Find and click close button
                         try:
-                            close_btn = window.find("Button name:Close or name:Cancel or name:OK or name:X")
+                            close_btn = window.find(
+                                "Button name:Close or name:Cancel or name:OK or name:X"
+                            )
                             if close_btn:
                                 close_btn.click()
                                 logger.info("Closed Windows popup with close button")
@@ -1024,7 +1108,9 @@ class PopupHandler:
             return False
 
         except ImportError:
-            logger.warning("robocorp-windows not installed. Install with: pip install robocorp-windows")
+            logger.warning(
+                "robocorp-windows not installed. Install with: pip install robocorp-windows"
+            )
             if self.on_failure == "raise":
                 raise ConfigurationError("robocorp-windows not installed")
             return False

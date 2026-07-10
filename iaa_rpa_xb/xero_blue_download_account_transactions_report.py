@@ -79,25 +79,32 @@ def xero_blue_download_account_transactions_report(
     start_time = datetime.now()
 
     logger.info("STARTING: xero_blue_download_account_transactions_report")
-    logger.info(json.dumps({
-        "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
-        "client_name": client_name,
-        "xero_start_date": xero_start_date,
-        "xero_end_date": xero_end_date,
-        "xero_financial_year": xero_financial_year,
-        "window_title": window_title,
-        "download_directory_path": download_directory_path,
-        "xero_report_file_name": xero_report_file_name,
-        "extension": extension,
-        "accounts": accounts,
-    }, indent=2))
+    logger.info(
+        json.dumps(
+            {
+                "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+                "client_name": client_name,
+                "xero_start_date": xero_start_date,
+                "xero_end_date": xero_end_date,
+                "xero_financial_year": xero_financial_year,
+                "window_title": window_title,
+                "download_directory_path": download_directory_path,
+                "xero_report_file_name": xero_report_file_name,
+                "extension": extension,
+                "accounts": accounts,
+            },
+            indent=2,
+        )
+    )
 
     try:
         driver = browser.driver
 
         # STEP 1: Set Report Date Range
         logger.info("STEP 1: Configuring report date range...")
-        str_start_date, str_end_date = resolve_report_dates(xero_start_date, xero_end_date, xero_financial_year)
+        str_start_date, str_end_date = resolve_report_dates(
+            xero_start_date, xero_end_date, xero_financial_year
+        )
         configure_report_dates(driver, str_start_date, str_end_date)
 
         # STEP 2: Configure Account Filter (if specified)
@@ -108,7 +115,6 @@ def xero_blue_download_account_transactions_report(
         # - Pass None or empty list to skip filtering (all accounts included).
         logger.info(f"STEP 2: Configuring account filter: {accounts}...")
         configure_accounts(driver, accounts)
-      
 
         # STEP 3: Generate Report and Export
         # Purpose: Trigger report generation, verify data exists, export in requested formats, and save files
@@ -151,11 +157,15 @@ def xero_blue_download_account_transactions_report(
         logger.error(f"Error             : {e}")
         logger.error(f"Status            : FAILED")
         logger.error("=" * 80)
-        logger.error("xero_blue_download_account_transactions_report failed", exc_info=True)
+        logger.error(
+            "xero_blue_download_account_transactions_report failed", exc_info=True
+        )
         raise
 
 
-def resolve_report_dates(xero_start_date: str | None, xero_end_date: str | None, xero_financial_year: str) -> tuple[str, str]:
+def resolve_report_dates(
+    xero_start_date: str | None, xero_end_date: str | None, xero_financial_year: str
+) -> tuple[str, str]:
     """
     Determine and format the start and end dates for the Account Transactions report.
 
@@ -184,14 +194,18 @@ def resolve_report_dates(xero_start_date: str | None, xero_end_date: str | None,
 
     if not xero_start_date:
         str_start_date = f"01 Jul {prior_year}"
-        logger.info(f"No custom start date provided. Using financial year default: {str_start_date}")
+        logger.info(
+            f"No custom start date provided. Using financial year default: {str_start_date}"
+        )
     else:
         str_start_date = xero_start_date
         logger.info(f"Using provided start date: {str_start_date}")
 
     if not xero_end_date:
         str_end_date = f"30 Jun {xero_financial_year}"
-        logger.info(f"No custom end date provided. Using financial year default: {str_end_date}")
+        logger.info(
+            f"No custom end date provided. Using financial year default: {str_end_date}"
+        )
     else:
         str_end_date = xero_end_date
         logger.info(f"Using provided end date: {str_end_date}")
@@ -221,8 +235,12 @@ def configure_report_dates(
     Raises:
         TimeoutException: If the date input fields cannot be located within 10 seconds.
     """
-    helper.type_into_date_element(driver, "report-settings-custom-date-input-from", str_start_date, by=By.ID)
-    helper.type_into_date_element(driver, "report-settings-custom-date-input-to", str_end_date, by=By.ID)
+    helper.type_into_date_element(
+        driver, "report-settings-custom-date-input-from", str_start_date, by=By.ID
+    )
+    helper.type_into_date_element(
+        driver, "report-settings-custom-date-input-to", str_end_date, by=By.ID
+    )
 
 
 def configure_accounts(driver: Any, accounts: list[str] | None) -> None:
@@ -249,14 +267,20 @@ def configure_accounts(driver: Any, accounts: list[str] | None) -> None:
             or if no matching dropdown items appear within 5 seconds.
     """
     # Anchored on the stable <label for="Accounts-selector"> — avoids dynamic placeholder/aria-label
-    accounts_open_btn_xpath = "//label[@for='Accounts-selector']/..//button[@aria-label='Open']"
-    accounts_input_xpath = "//label[@for='Accounts-selector']/..//input[@role='combobox']"
+    accounts_open_btn_xpath = (
+        "//label[@for='Accounts-selector']/..//button[@aria-label='Open']"
+    )
+    accounts_input_xpath = (
+        "//label[@for='Accounts-selector']/..//input[@role='combobox']"
+    )
     select_all_xpath = "//button[contains(@class,'xui-pickitem--body')][.//span[normalize-space()='Select all']]"
     deselect_all_xpath = "//button[contains(@class,'xui-pickitem--body')][.//span[normalize-space()='Deselect all']]"
 
     # Verify the accounts filter exists on this page
     if not helper.element_exists(driver, accounts_open_btn_xpath, timeout=5):
-        logger.warning("Accounts selector not found on this page — skipping account filter")
+        logger.warning(
+            "Accounts selector not found on this page — skipping account filter"
+        )
         return
 
     # Open the dropdown via the Open button
@@ -291,13 +315,19 @@ def configure_accounts(driver: Any, accounts: list[str] | None) -> None:
             helper.click_element(driver, exact_xpath)
             logger.info(f"Exact match found and selected: '{account}'")
         else:
-            logger.info(f"No exact match for '{account}' — selecting all visible items containing text")
+            logger.info(
+                f"No exact match for '{account}' — selecting all visible items containing text"
+            )
             partial_xpath = f"//li[contains(@aria-label,{literal})]//button[contains(@class,'xui-pickitem--body')]"
             items = helper.find_elements(driver, partial_xpath)
             for item in items:
                 try:
                     item.click()
-                    li_label = item.find_element(By.XPATH, "..").get_attribute("aria-label")
+                    li_label = item.find_element(By.XPATH, "..").get_attribute(
+                        "aria-label"
+                    )
                     logger.info(f"Clicked partial match: '{li_label or account}'")
                 except Exception as ex:
-                    logger.warning(f"Could not click partial match item for '{account}': {ex}")
+                    logger.warning(
+                        f"Could not click partial match item for '{account}': {ex}"
+                    )

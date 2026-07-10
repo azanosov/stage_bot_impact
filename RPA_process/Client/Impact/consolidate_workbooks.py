@@ -67,7 +67,6 @@ from dataclasses import dataclass
 # ====================================================================================
 from iaa_rpa_utils import ProcessLogger, setup_logger
 
-
 # ====================================================================================
 # MODULE SETUP
 # ====================================================================================
@@ -82,9 +81,9 @@ __all__ = [
 # ====================================================================================
 # MODULE CONSTANTS
 # ====================================================================================
-_MAX_SHEET_NAME_LEN = 31           # Excel's hard limit on worksheet tab names
+_MAX_SHEET_NAME_LEN = 31  # Excel's hard limit on worksheet tab names
 _INVALID_SHEET_CHARS = set(r"[]:*?/\\")  # characters Excel forbids in tab names
-_XL_FILEFORMAT_XLSX = 51           # xlOpenXMLWorkbook - save target as .xlsx
+_XL_FILEFORMAT_XLSX = 51  # xlOpenXMLWorkbook - save target as .xlsx
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -115,10 +114,14 @@ class WorkbookConsolidationRequest:
             raise ValueError("target_path is required and must be a non-empty string")
 
         if self.sheets is not None:
-            if not isinstance(self.sheets, list) or not all(isinstance(s, str) for s in self.sheets):
+            if not isinstance(self.sheets, list) or not all(
+                isinstance(s, str) for s in self.sheets
+            ):
                 raise TypeError("sheets must be a list of strings, or None")
             if not self.sheets:
-                raise ValueError("sheets must be a non-empty list when provided (use None for first tab)")
+                raise ValueError(
+                    "sheets must be a non-empty list when provided (use None for first tab)"
+                )
 
 
 def _unique_sheet_name(desired: str, existing: set[str]) -> str:
@@ -189,7 +192,9 @@ def consolidate_workbook(request: WorkbookConsolidationRequest) -> None:
         target_path = os.path.abspath(request.target_path)
         logger.info(f"  Source: {source_path}")
         logger.info(f"  Target: {target_path}")
-        logger.info(f"  Sheets: {request.sheets if request.sheets is not None else '(first tab)'}")
+        logger.info(
+            f"  Sheets: {request.sheets if request.sheets is not None else '(first tab)'}"
+        )
 
         # ====================================================================
         # INPUT VALIDATION
@@ -252,7 +257,9 @@ def consolidate_workbook(request: WorkbookConsolidationRequest) -> None:
             # Resolve which source sheets to move.
             if request.sheets is None:
                 sheets_to_move = [source_wb.Worksheets(1).Name]  # first tab by position
-                logger.info(f"  No sheets specified - using first tab: '{sheets_to_move[0]}'")
+                logger.info(
+                    f"  No sheets specified - using first tab: '{sheets_to_move[0]}'"
+                )
             else:
                 source_names = {ws.Name for ws in source_wb.Worksheets}
                 missing = [s for s in request.sheets if s not in source_names]
@@ -279,7 +286,9 @@ def consolidate_workbook(request: WorkbookConsolidationRequest) -> None:
                 if final_name != new_ws.Name:
                     new_ws.Name = final_name
                 if final_name != sheet_name:
-                    logger.info(f"  Copied '{sheet_name}' -> '{final_name}' (renamed to avoid collision)")
+                    logger.info(
+                        f"  Copied '{sheet_name}' -> '{final_name}' (renamed to avoid collision)"
+                    )
                 else:
                     logger.info(f"  Copied '{sheet_name}'")
                 existing_names.add(final_name)

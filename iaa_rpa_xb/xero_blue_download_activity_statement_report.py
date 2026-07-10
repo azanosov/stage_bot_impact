@@ -18,7 +18,6 @@ from selenium.webdriver.support.wait import WebDriverWait
 
 from .download_file import download_file
 
-
 # Set up logger
 logger = setup_logger(__name__)
 

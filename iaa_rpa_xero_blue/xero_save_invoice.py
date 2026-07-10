@@ -30,6 +30,7 @@ import os
 import time
 from datetime import datetime
 from robocorp import windows
+
 # Selenium imports
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
@@ -39,18 +40,18 @@ from selenium.webdriver.support import expected_conditions as EC
 from iaa_rpa_utils import setup_logger
 from iaa_rpa_utils.browser import safe_click
 
-
 # Set up logger
 logger = setup_logger(__name__)
 
+
 def xero_save_invoice(
-                        browser,
-                        xero_account_name,
-                        xero_invoice_number,
-                        xero_url,
-                        invoice_save_path,
-                        is_invoice_saved_successfully
-                    ):
+    browser,
+    xero_account_name,
+    xero_invoice_number,
+    xero_url,
+    invoice_save_path,
+    is_invoice_saved_successfully,
+):
     """
     Main function to save a Xero invoice as a PDF file.
 
@@ -121,7 +122,9 @@ def xero_save_invoice(
 
         # Step 5: Save the invoice as PDF
         # Uses Windows automation to download the invoice to the specified path
-        is_invoice_saved_successfully, res_invoice_path = send_invoice(driver, invoice_save_path)
+        is_invoice_saved_successfully, res_invoice_path = send_invoice(
+            driver, invoice_save_path
+        )
 
         # Calculate duration and log successful completion
         end_time = datetime.now()
@@ -181,18 +184,17 @@ def navigate_to_dashboard_or_home(driver):
         # Attempt to click Home link (primary option)
         home_xpath = "//a[.//span[normalize-space()='Home']]"
         home_ele = WebDriverWait(driver, 10).until(
-                    EC.visibility_of_element_located((By.XPATH, home_xpath))
-                )
+            EC.visibility_of_element_located((By.XPATH, home_xpath))
+        )
         safe_click(driver, home_ele, "Clicked Home")
         logger.info("Clicked Home")
-   
 
     except Exception:
-       # Attempt to click Dashboard link
+        # Attempt to click Dashboard link
         dashboard_xpath = "//a[normalize-space(text())='Dashboard']"
         dashboard_ele = WebDriverWait(driver, 10).until(
-                    EC.visibility_of_element_located((By.XPATH, dashboard_xpath))
-                )
+            EC.visibility_of_element_located((By.XPATH, dashboard_xpath))
+        )
         safe_click(driver, dashboard_ele, "Clicked Dashboard")
         logger.info("Clicked Dashboard")
 
@@ -218,14 +220,15 @@ def is_correct_account(driver, xero_account_name) -> bool:
         # Search for the account name in the page header (H1 element)
         account_xpath = f"//h1//div[normalize-space(.)='{xero_account_name}']"
         WebDriverWait(driver, 10).until(
-                    EC.visibility_of_element_located((By.XPATH, account_xpath))
-                )
+            EC.visibility_of_element_located((By.XPATH, account_xpath))
+        )
         logger.info("This is correct account")
         return True
     except Exception:
         logger.info("This is not correct account")
         return False
-    
+
+
 def is_invoice_exist(driver, invoice_num_xpath, xero_invoice_number) -> bool:
     """
     Check if an invoice exists in the invoice list table.
@@ -246,13 +249,14 @@ def is_invoice_exist(driver, invoice_num_xpath, xero_invoice_number) -> bool:
     try:
         # Look for invoice number in the table cell with role='cell'
         WebDriverWait(driver, 10).until(
-                    EC.visibility_of_element_located((By.XPATH, invoice_num_xpath))
-                )
+            EC.visibility_of_element_located((By.XPATH, invoice_num_xpath))
+        )
         logger.info(f"{xero_invoice_number} Invoice exist")
         return True
     except Exception:
         logger.info(f"{xero_invoice_number} Invoice is not exist")
         return False
+
 
 def is_invoice_page_exist(driver, xero_invoice_number) -> bool:
     """
@@ -273,15 +277,18 @@ def is_invoice_page_exist(driver, xero_invoice_number) -> bool:
     """
     try:
         # Check for the H1 header containing "Invoice {number}"
-        invoice_page_confirm_xpath = f"//h1[normalize-space(text())='Invoice {xero_invoice_number}']"
+        invoice_page_confirm_xpath = (
+            f"//h1[normalize-space(text())='Invoice {xero_invoice_number}']"
+        )
         WebDriverWait(driver, 10).until(
-                    EC.visibility_of_element_located((By.XPATH, invoice_page_confirm_xpath))
-                )
+            EC.visibility_of_element_located((By.XPATH, invoice_page_confirm_xpath))
+        )
         logger.info("Invoice page exist")
         return True
     except Exception:
         logger.info("Invoice page is not exist")
         return False
+
 
 def is_print_pdf_exist(driver) -> bool:
     """
@@ -303,14 +310,14 @@ def is_print_pdf_exist(driver) -> bool:
         # Search for the Print PDF button by its ID and text content
         print_pdf_xpath = f"//button[@id='PrintDropdown-print' and normalize-space(text())='Print PDF']"
         WebDriverWait(driver, 10).until(
-                    EC.visibility_of_element_located((By.XPATH, print_pdf_xpath))
-                )
+            EC.visibility_of_element_located((By.XPATH, print_pdf_xpath))
+        )
         logger.info("Print PDF exist")
         return True
     except Exception:
         logger.info("Print PDF is not exist")
         return False
-    
+
 
 def navigate_to_correct_account(driver, xero_account_name):
     """
@@ -332,54 +339,53 @@ def navigate_to_correct_account(driver, xero_account_name):
     """
     # Check if we're already on the correct account
     if not is_correct_account(driver, xero_account_name):
-        logger.info("Current Account is not "+xero_account_name)
+        logger.info("Current Account is not " + xero_account_name)
 
         # Click on Account dropdown
         try:
-            #New ui
+            # New ui
             account_drop_down_xpath = "//div[@id='main-menu']//button[@type='button']"
             elem = WebDriverWait(driver, 5).until(
                 EC.element_to_be_clickable((By.XPATH, account_drop_down_xpath))
             )
             safe_click(driver, elem, "Account dropdown")
-            logger.info(f'Clicked {xero_account_name} from the dropdown')
-            
+            logger.info(f"Clicked {xero_account_name} from the dropdown")
+
         except Exception:
             try:
-                #Old ui
+                # Old ui
                 account_drop_down_xpath = "//div[@class='xnav-appbutton--body']"
                 elem = WebDriverWait(driver, 5).until(
                     EC.element_to_be_clickable((By.XPATH, account_drop_down_xpath))
                 )
                 safe_click(driver, elem, "Account dropdown")
-                logger.info(f'Clicked {xero_account_name} from the dropdown')
+                logger.info(f"Clicked {xero_account_name} from the dropdown")
             except Exception as e:
                 logger.error(f"Could not open account dropdown: {e}")
                 raise
 
         # Click account name
         try:
-            #New ui
+            # New ui
             account_name_xpath = f"//a[@role='link']//span[normalize-space(text())='{xero_account_name}']"
             elem = WebDriverWait(driver, 5).until(
                 EC.element_to_be_clickable((By.XPATH, account_name_xpath))
             )
             safe_click(driver, elem, f"Account: {xero_account_name}")
-            logger.info(f'Clicked {xero_account_name}')
-           
+            logger.info(f"Clicked {xero_account_name}")
+
         except Exception:
             try:
-                #Old ui
+                # Old ui
                 account_name_xpath = f"//div[@id='main-menu']//a[normalize-space(text())='{xero_account_name}']"
                 elem = WebDriverWait(driver, 5).until(
                     EC.element_to_be_clickable((By.XPATH, account_name_xpath))
                 )
                 safe_click(driver, elem, f"Account: {xero_account_name}")
-                logger.info(f'Clicked {xero_account_name}')
+                logger.info(f"Clicked {xero_account_name}")
             except Exception as e:
                 logger.error(f"Could not select account {xero_account_name}: {e}")
                 raise
-            
 
 
 def navigated_to_client(driver, xero_invoice_number, xero_url):
@@ -418,7 +424,9 @@ def navigated_to_client(driver, xero_invoice_number, xero_url):
             try:
                 # For new UI: Click Sales button
                 # This expands the Sales menu to reveal the Invoices link
-                sales_xpath = "//button[@type='button']//span[normalize-space(text())='Sales']"
+                sales_xpath = (
+                    "//button[@type='button']//span[normalize-space(text())='Sales']"
+                )
                 elem = WebDriverWait(driver, 5).until(
                     EC.element_to_be_clickable((By.XPATH, sales_xpath))
                 )
@@ -427,7 +435,9 @@ def navigated_to_client(driver, xero_invoice_number, xero_url):
 
                 # For new UI: Click Invoices link
                 # Opens the Invoices page with all invoice lists
-                invoice_xpath = "//a[@role='link']//span[normalize-space(text())='Invoices']"
+                invoice_xpath = (
+                    "//a[@role='link']//span[normalize-space(text())='Invoices']"
+                )
                 elem = WebDriverWait(driver, 5).until(
                     EC.element_to_be_clickable((By.XPATH, invoice_xpath))
                 )
@@ -455,50 +465,53 @@ def navigated_to_client(driver, xero_invoice_number, xero_url):
                 )
                 safe_click(driver, elem, "Invoices")
                 logger.info("Invoices link clicked (old UI)")
-                
+
             # Search for the specific invoice using the search input field
             # Uses keyboard automation to clear field and enter invoice number
             search_xpath = "//a[.//span[normalize-space()='Search']]"
             search_ele = WebDriverWait(driver, 5).until(
-                    EC.visibility_of_element_located((By.XPATH, search_xpath))
-                )
+                EC.visibility_of_element_located((By.XPATH, search_xpath))
+            )
             safe_click(driver, search_ele, "Clicked search button")
             logger.info("Clicked search button")
 
-            #Click searchbar
+            # Click searchbar
             input_xpath = "//input[@id='sb_txtReference']"
             input_client_ele = WebDriverWait(driver, 5).until(
-                    EC.visibility_of_element_located((By.XPATH, input_xpath))
-                )
+                EC.visibility_of_element_located((By.XPATH, input_xpath))
+            )
             safe_click(driver, input_client_ele, "Clicked search bar")
             logger.info("Clicked search bar")
 
-            input_client_ele.send_keys(u'\ue009' + 'a')  # CTRL + A to select all text
-            input_client_ele.send_keys(u'\ue003')        # DELETE to clear the field
-            input_client_ele.send_keys(xero_invoice_number) # Type the invoice number
-            input_client_ele.send_keys(u'\ue004')        # TAB to trigger search
-            logger.info(f"Entered invoice number in search field: {xero_invoice_number}")
+            input_client_ele.send_keys("\ue009" + "a")  # CTRL + A to select all text
+            input_client_ele.send_keys("\ue003")  # DELETE to clear the field
+            input_client_ele.send_keys(xero_invoice_number)  # Type the invoice number
+            input_client_ele.send_keys("\ue004")  # TAB to trigger search
+            logger.info(
+                f"Entered invoice number in search field: {xero_invoice_number}"
+            )
 
             # Step 5: Click the Search button to execute the search
             search_user_xpath = "//a[normalize-space(text())='Search']"
             search_user_ele = WebDriverWait(driver, 10).until(
-                    EC.visibility_of_element_located((By.XPATH, search_user_xpath))
-                )
+                EC.visibility_of_element_located((By.XPATH, search_user_xpath))
+            )
             safe_click(driver, search_user_ele, "Clicked Search")
             logger.info("Clicked on Search")
 
             invoice_num_xpath = f"//table[@id='ext-gen45']//tbody//tr//td[normalize-space(text())='{xero_invoice_number}']"
 
-
             # Step 6: Verify invoice exists and open it
             if is_invoice_exist(driver, invoice_num_xpath, xero_invoice_number):
 
-                logger.info(f"Invoice exist: ", {'True' if is_invoice_exist else 'False'})
+                logger.info(
+                    f"Invoice exist: ", {"True" if is_invoice_exist else "False"}
+                )
 
                 # Click on the invoice number to open the detail page
                 invoice_num_ele = WebDriverWait(driver, 10).until(
-                        EC.visibility_of_element_located((By.XPATH, invoice_num_xpath))
-                    )
+                    EC.visibility_of_element_located((By.XPATH, invoice_num_xpath))
+                )
                 safe_click(driver, invoice_num_ele, "Clicked Invoice Number")
                 logger.info("Clicked on Invoice Number")
 
@@ -552,13 +565,15 @@ def send_invoice(driver, invoice_save_path) -> tuple[bool, str]:
     # Step 2: Use Windows automation to handle the Save As dialog
     try:
         # Find the Chrome window containing Xero
-        app = windows.find_window(f'regex:.*Xero | * | * - Google Chrome')
+        app = windows.find_window(f"regex:.*Xero | * | * - Google Chrome")
 
         # Locate the Save As dialog window
         app.find('control:"WindowControl" and name:"Save As" and path:"1"')
 
         # Find the filename input field in the Save As dialog
-        file_input = app.find('control:"EditControl" and class:"Edit" and name:"File name:" and path:"1|1|1|6|3|2|1"')
+        file_input = app.find(
+            'control:"EditControl" and class:"Edit" and name:"File name:" and path:"1|1|1|6|3|2|1"'
+        )
 
         # Step 3: Get the default filename from Xero (e.g., "INV-001.pdf")
         default_invoice_name = file_input.get_value()
@@ -566,7 +581,9 @@ def send_invoice(driver, invoice_save_path) -> tuple[bool, str]:
 
         # Step 4: Set the full file path (directory + filename)
         file_input.click()  # Activate the input field
-        file_path = os.path.normpath(os.path.join(invoice_save_path, default_invoice_name))
+        file_path = os.path.normpath(
+            os.path.join(invoice_save_path, default_invoice_name)
+        )
         file_input.set_value(file_path)
 
         # Wait for the path to be set
@@ -592,6 +609,3 @@ def send_invoice(driver, invoice_save_path) -> tuple[bool, str]:
     except Exception as e:
         logger.error(f"Failed during export: {e}")
         raise
-
-
-

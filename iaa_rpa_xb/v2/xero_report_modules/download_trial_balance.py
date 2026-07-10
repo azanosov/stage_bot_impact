@@ -74,7 +74,6 @@ from typing import Literal, get_args
 from iaa_rpa_utils import ProcessLogger, setup_logger
 from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog
 
-
 # Set up logger
 logger = setup_logger(__name__)
 
@@ -90,15 +89,25 @@ __all__ = [
 # --------------------------------------------------------------------
 # Module constants
 # --------------------------------------------------------------------
-DEFAULT_ELEMENT_TIMEOUT = 5   # seconds; general element waits (overridable per run)
-EXPORT_TIMEOUT = 10           # seconds; Update/Export/Excel - Xero builds the file server-side
-_MIN_FINANCIAL_YEAR = 2000    # earliest financial year we accept
+DEFAULT_ELEMENT_TIMEOUT = 5  # seconds; general element waits (overridable per run)
+EXPORT_TIMEOUT = 10  # seconds; Update/Export/Excel - Xero builds the file server-side
+_MIN_FINANCIAL_YEAR = 2000  # earliest financial year we accept
 
 # Locale-independent month abbreviations, matching the labels Xero's date field
 # expects (e.g. "30 Jun 2024"). Avoids strftime('%b') locale surprises.
 _MONTH_ABBR = (
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
 )
 
 # Accounting methods, selected via the More options menu. The value maps to the
@@ -185,7 +194,9 @@ class TrialBalanceRequest:
         # Provided end_date must be a real date object (datetime is a date
         # subclass, so it is accepted too - only the calendar part is used).
         if self.end_date is not None and not isinstance(self.end_date, date):
-            raise TypeError(f"end_date must be a datetime.date, got {type(self.end_date).__name__}")
+            raise TypeError(
+                f"end_date must be a datetime.date, got {type(self.end_date).__name__}"
+            )
 
         # financial_year is the fallback source; required only when end_date is missing.
         if self.end_date is None and self.financial_year is None:
@@ -193,7 +204,9 @@ class TrialBalanceRequest:
 
         # Validate financial_year when present. bool is an int subclass, exclude it.
         if self.financial_year is not None:
-            if not isinstance(self.financial_year, int) or isinstance(self.financial_year, bool):
+            if not isinstance(self.financial_year, int) or isinstance(
+                self.financial_year, bool
+            ):
                 raise TypeError(
                     f"financial_year must be an int, got {type(self.financial_year).__name__}"
                 )
@@ -237,12 +250,17 @@ class TrialBalanceRequest:
         """Human-readable "label : value" rows describing this request, with
         the colons aligned. Used for the run's opening log block."""
         end_date_display = (
-            self.resolved_end_date if self.end_date
+            self.resolved_end_date
+            if self.end_date
             else f"{self.resolved_end_date} (default)"
         )
         rows = {
             "End Date": end_date_display,
-            "Financial Year": self.financial_year if self.financial_year is not None else "(from end date)",
+            "Financial Year": (
+                self.financial_year
+                if self.financial_year is not None
+                else "(from end date)"
+            ),
             "Accounting Method": self.accounting_label,
             "Add GST Column": self.add_gst_column,
             "Export Format": self.export_format,
@@ -361,9 +379,9 @@ def configure_report_date(browser, request: TrialBalanceRequest) -> None:
     logger.info(f"Entering report end date: {end_date}")
     browser.click_element(to_date_locator, timeout=timeout)
     browser.send_keys_to_active_element("\ue009" + "a")  # CTRL + A to select all
-    browser.send_keys_to_active_element("\ue003")        # DELETE to clear existing value
-    browser.send_keys_to_active_element(end_date)        # Type the resolved end date
-    browser.send_keys_to_active_element("\ue004")        # TAB to confirm and move on
+    browser.send_keys_to_active_element("\ue003")  # DELETE to clear existing value
+    browser.send_keys_to_active_element(end_date)  # Type the resolved end date
+    browser.send_keys_to_active_element("\ue004")  # TAB to confirm and move on
     logger.info(f"End date entered successfully: {end_date}")
 
 
@@ -433,9 +451,15 @@ def generate_and_export_report(browser, request: TrialBalanceRequest) -> None:
     timeout = request.element_timeout
     logger.info("Starting report generation and Excel export process...")
 
-    update_locator = "xpath://button[@type='button' and normalize-space(text())='Update']"
-    export_locator = "xpath://button[@type='button' and normalize-space(text())='Export']"
-    excel_locator = "xpath://button[@type='button']//span[normalize-space(text())='Excel']"
+    update_locator = (
+        "xpath://button[@type='button' and normalize-space(text())='Update']"
+    )
+    export_locator = (
+        "xpath://button[@type='button' and normalize-space(text())='Export']"
+    )
+    excel_locator = (
+        "xpath://button[@type='button']//span[normalize-space(text())='Excel']"
+    )
     report_title_locator = "xpath://input[@placeholder='Report title']"
 
     # Click 'Update' to generate the report with the configured settings
@@ -447,14 +471,18 @@ def generate_and_export_report(browser, request: TrialBalanceRequest) -> None:
     if browser.does_page_contain_element(report_title_locator, timeout=EXPORT_TIMEOUT):
         logger.info("Report rendered successfully - report title is visible")
     else:
-        logger.warning("Report title not visible within timeout - proceeding to data check")
+        logger.warning(
+            "Report title not visible within timeout - proceeding to data check"
+        )
 
     # Capture an audit screenshot into the browser's configured directory.
     _capture_audit_screenshot(browser)
 
     # Verify the Export button is present; its absence means the client has no data.
     if not browser.does_page_contain_element(export_locator, timeout=timeout):
-        logger.warning("Export button not found - no Trial Balance data available for this client")
+        logger.warning(
+            "Export button not found - no Trial Balance data available for this client"
+        )
         raise RuntimeError("No Trial Balance data available for this client.")
     logger.info("'Export' button located - report contains data")
 
@@ -466,7 +494,9 @@ def generate_and_export_report(browser, request: TrialBalanceRequest) -> None:
     # Select 'Excel' to trigger the file download and open the Save As dialog
     logger.info("Selecting 'Excel' format to initiate file download...")
     browser.click_element(excel_locator, timeout=EXPORT_TIMEOUT)
-    logger.info("Excel export triggered. Waiting for Windows Save As dialog to appear...")
+    logger.info(
+        "Excel export triggered. Waiting for Windows Save As dialog to appear..."
+    )
 
     # Brief settle so the download/save dialog has rendered before we drive it.
     time.sleep(3)
@@ -494,7 +524,9 @@ def _capture_audit_screenshot(browser) -> None:
         folder_path = os.getcwd()
         os.makedirs(folder_path, exist_ok=True)
         timestamp = datetime.now().strftime("%y%m%d.%H%M%S")
-        screenshot_path = os.path.join(folder_path, f"ExceptionScreenshot_{timestamp}.png")
+        screenshot_path = os.path.join(
+            folder_path, f"ExceptionScreenshot_{timestamp}.png"
+        )
         browser.screenshot(screenshot_path)
         logger.info(f"Screenshot saved at: {screenshot_path}")
     except Exception as e:

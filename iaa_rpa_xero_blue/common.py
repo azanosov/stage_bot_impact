@@ -41,22 +41,32 @@ logger = setup_logger(__name__)
 # ============================================================================
 # Shared constants
 # ============================================================================
-DEFAULT_ELEMENT_TIMEOUT = 5    # seconds; general element waits
-EXPORT_TIMEOUT = 10            # seconds; Update/Export/format - Xero builds the file server-side
-DETECTION_TIMEOUT = 2          # seconds; fast UI-version / negative-result probes
-MIN_FINANCIAL_YEAR = 2000      # earliest financial year we accept
+DEFAULT_ELEMENT_TIMEOUT = 5  # seconds; general element waits
+EXPORT_TIMEOUT = 10  # seconds; Update/Export/format - Xero builds the file server-side
+DETECTION_TIMEOUT = 2  # seconds; fast UI-version / negative-result probes
+MIN_FINANCIAL_YEAR = 2000  # earliest financial year we accept
 
 # Locale-independent month abbreviations, matching the labels Xero's date field
 # expects (e.g. "30 Jun 2024"). Avoids strftime('%b') locale surprises.
 _MONTH_ABBR = (
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
 )
 
 # Selenium key codes used by clear_and_type.
-_CTRL_A = "\ue009" + "a"   # CTRL + A (select all)
-_DELETE = "\ue003"         # DELETE
-_TAB = "\ue004"            # TAB (commit / move focus off the field)
+_CTRL_A = "\ue009" + "a"  # CTRL + A (select all)
+_DELETE = "\ue003"  # DELETE
+_TAB = "\ue004"  # TAB (commit / move focus off the field)
 
 
 # ============================================================================
@@ -83,14 +93,18 @@ def validate_optional_date(value, name: str) -> None:
     """When given, require a real datetime.date (datetime is accepted - it is a
     date subclass and only the calendar part is used)."""
     if value is not None and not isinstance(value, date):
-        raise DataValidationError(f"{name} must be a datetime.date, got {type(value).__name__}")
+        raise DataValidationError(
+            f"{name} must be a datetime.date, got {type(value).__name__}"
+        )
 
 
 def validate_financial_year(value) -> None:
     """Require a plausible integer financial year. bool is an int subclass, so
     it is excluded explicitly."""
     if not isinstance(value, int) or isinstance(value, bool):
-        raise DataValidationError(f"financial_year must be an int, got {type(value).__name__}")
+        raise DataValidationError(
+            f"financial_year must be an int, got {type(value).__name__}"
+        )
     max_year = datetime.now().year + 2
     if not MIN_FINANCIAL_YEAR <= value <= max_year:
         raise DataValidationError(
@@ -101,7 +115,9 @@ def validate_financial_year(value) -> None:
 def validate_date_order(start: date | None, end: date | None) -> None:
     """When both dates are given explicitly, start must not be after end."""
     if start is not None and end is not None and start > end:
-        raise DataValidationError(f"start_date ({start}) must not be after end_date ({end})")
+        raise DataValidationError(
+            f"start_date ({start}) must not be after end_date ({end})"
+        )
 
 
 # ============================================================================
@@ -109,40 +125,52 @@ def validate_date_order(start: date | None, end: date | None) -> None:
 # (the report toolbar / settings menus are XUI pick-lists; these read and drive
 #  an option by its stable id, via the templates in config.py)
 # ============================================================================
-def pickitem_is_selected(browser, opt_id: str, timeout: int = DEFAULT_ELEMENT_TIMEOUT) -> bool:
+def pickitem_is_selected(
+    browser, opt_id: str, timeout: int = DEFAULT_ELEMENT_TIMEOUT
+) -> bool:
     """True if the pick-list option is currently selected (aria-selected='true')."""
     return browser.does_page_contain_element(
         config.SH_PICKITEM_SELECTED_TPL.format(opt_id=opt_id), timeout=timeout
     )
 
 
-def pickitem_is_disabled(browser, opt_id: str, timeout: int = DEFAULT_ELEMENT_TIMEOUT) -> bool:
+def pickitem_is_disabled(
+    browser, opt_id: str, timeout: int = DEFAULT_ELEMENT_TIMEOUT
+) -> bool:
     """True if the pick-list option is disabled (greyed out)."""
     return browser.does_page_contain_element(
         config.SH_PICKITEM_DISABLED_TPL.format(opt_id=opt_id), timeout=timeout
     )
 
 
-def click_pickitem_by_id(browser, opt_id: str, timeout: int = DEFAULT_ELEMENT_TIMEOUT) -> None:
+def click_pickitem_by_id(
+    browser, opt_id: str, timeout: int = DEFAULT_ELEMENT_TIMEOUT
+) -> None:
     """Click a pick-list option's body, located by its stable id."""
-    browser.click_element(config.SH_PICKITEM_BODY_TPL.format(opt_id=opt_id), timeout=timeout)
+    browser.click_element(
+        config.SH_PICKITEM_BODY_TPL.format(opt_id=opt_id), timeout=timeout
+    )
 
 
-def ensure_pickitem_selected(browser, opt_id: str, timeout: int = DEFAULT_ELEMENT_TIMEOUT) -> None:
+def ensure_pickitem_selected(
+    browser, opt_id: str, timeout: int = DEFAULT_ELEMENT_TIMEOUT
+) -> None:
     """Force a pick-list option to be selected: click it only if it isn't already
     (idempotent - safe to call regardless of the page's starting state)."""
     if not pickitem_is_selected(browser, opt_id, timeout):
         click_pickitem_by_id(browser, opt_id, timeout)
 
 
-def select_accounting_basis_via_more(browser, basis_option_id: str, timeout: int = DEFAULT_ELEMENT_TIMEOUT) -> None:
+def select_accounting_basis_via_more(
+    browser, basis_option_id: str, timeout: int = DEFAULT_ELEMENT_TIMEOUT
+) -> None:
     """Open the More menu, force the given accounting-basis option selected
     (idempotent), and close the menu so it doesn't overlay the rest of the panel.
     Shared by reports whose basis lives behind More (Trial Balance, General
     Ledger, ...)."""
     browser.click_element(config.SH_MORE_BUTTON, timeout=timeout)
     ensure_pickitem_selected(browser, basis_option_id, timeout)
-    browser.click_element(config.SH_MORE_BUTTON, timeout=timeout)   # close the menu
+    browser.click_element(config.SH_MORE_BUTTON, timeout=timeout)  # close the menu
 
 
 def select_listbox_option(
@@ -165,7 +193,9 @@ def select_listbox_option(
 # ============================================================================
 # Input primitive
 # ============================================================================
-def clear_and_type(browser, locator: str, value: str, timeout: int = DEFAULT_ELEMENT_TIMEOUT) -> None:
+def clear_and_type(
+    browser, locator: str, value: str, timeout: int = DEFAULT_ELEMENT_TIMEOUT
+) -> None:
     """Focus a (usually pre-filled) field, clear it, type a value, and TAB to
     commit. The trailing TAB is what makes Xero accept the typed value."""
     browser.click_element(locator, timeout=timeout)
@@ -193,18 +223,19 @@ def verify_saved_file(path: str) -> None:
     if not os.path.isfile(path):
         raise DownloadError(f"Expected export file was not saved: {path}")
 
+
 # robocorp.windows parses a bare " and " / " or " inside a locator string as a
 # condition combiner, so a window title containing one (e.g. "Profit and Loss")
 # would be split into two conditions and never match. Replaced with a regex
 # wildcard so the whole title stays a single regex condition.
 _LOCATOR_KEYWORDS = (" and ", " or ")
- 
- 
+
+
 def chrome_window_locator(window_title: str) -> str:
     """Build the robocorp.windows regex locator for the Chrome window whose tab
     title contains ``window_title``, safe for titles that contain robocorp
     locator keywords.
- 
+
     e.g. "Profit and Loss" -> 'regex:.*Profit.*Loss.* - Google Chrome'
          "Trial Balance"   -> 'regex:.*Trial Balance.* - Google Chrome'
     """
@@ -212,7 +243,6 @@ def chrome_window_locator(window_title: str) -> str:
     for kw in _LOCATOR_KEYWORDS:
         safe = safe.replace(kw, ".*")
     return f"regex:.*{safe}.* - Google Chrome"
-
 
 
 # ============================================================================
@@ -243,7 +273,9 @@ def capture_report_screenshot(
     """
     if not enabled:
         return
-    path = os.path.join(directory, f"{report_name}_{stage}_{datetime.now():%Y%m%d_%H%M%S}.png")
+    path = os.path.join(
+        directory, f"{report_name}_{stage}_{datetime.now():%Y%m%d_%H%M%S}.png"
+    )
     if take_full_page_screenshot(browser.driver, path):
         logger.info(f"Audit screenshot saved: {path}")
     else:

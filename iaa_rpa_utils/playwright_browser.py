@@ -14,7 +14,12 @@ from pathlib import Path
 from typing import Optional, Iterable
 
 from .logger import setup_logger
-from .exceptions import WebAutomationError, NavigationError, BrowserError, ElementNotFoundError
+from .exceptions import (
+    WebAutomationError,
+    NavigationError,
+    BrowserError,
+    ElementNotFoundError,
+)
 
 logger = setup_logger(__name__)
 
@@ -33,7 +38,9 @@ def _resolve_user_data_dir() -> Path:
     else:  # Linux
         chrome = home / ".config" / "google-chrome"
         chromium = home / ".config" / "chromium"
-        return chrome if chrome.exists() else (chromium if chromium.exists() else chrome)
+        return (
+            chrome if chrome.exists() else (chromium if chromium.exists() else chrome)
+        )
 
 
 class PlaywrightBrowser:
@@ -102,9 +109,7 @@ class PlaywrightBrowser:
             )
 
         except ImportError:
-            error_msg = (
-                "Playwright not installed. Install with: pip install playwright && playwright install"
-            )
+            error_msg = "Playwright not installed. Install with: pip install playwright && playwright install"
             logger.error(error_msg)
             raise WebAutomationError(error_msg)
         except Exception as e:
@@ -140,7 +145,9 @@ class PlaywrightBrowser:
 
         # Linux/container sandbox hygiene
         if platform.system() == "Linux":
-            in_container = Path("/.dockerenv").exists() or Path("/run/.containerenv").exists()
+            in_container = (
+                Path("/.dockerenv").exists() or Path("/run/.containerenv").exists()
+            )
             is_root = hasattr(os, "geteuid") and os.geteuid() == 0
             if in_container or is_root:
                 launch_args.append("--no-sandbox")
@@ -155,7 +162,9 @@ class PlaywrightBrowser:
                 # Clone profile to temp directory
                 src_profile = src_user_data_dir / profile_directory
                 if not src_profile.exists():
-                    logger.warning(f"Profile not found: {src_profile}, using clean profile")
+                    logger.warning(
+                        f"Profile not found: {src_profile}, using clean profile"
+                    )
                 else:
                     tmp = Path(tempfile.mkdtemp(prefix="playwright-chrome-"))
                     self._temp_profile_dir = tmp
@@ -164,9 +173,18 @@ class PlaywrightBrowser:
                     def _ignore(dirpath, names):
                         ignore_list = set()
                         for n in names:
-                            if n.startswith("Singleton") or n in {"Crashpad", "GrShaderCache", "ShaderCache"}:
+                            if n.startswith("Singleton") or n in {
+                                "Crashpad",
+                                "GrShaderCache",
+                                "ShaderCache",
+                            }:
                                 ignore_list.add(n)
-                            if n in {"GPUCache", "Code Cache", "Media Cache", "Application Cache"}:
+                            if n in {
+                                "GPUCache",
+                                "Code Cache",
+                                "Media Cache",
+                                "Application Cache",
+                            }:
                                 ignore_list.add(n)
                         return ignore_list
 
@@ -186,11 +204,15 @@ class PlaywrightBrowser:
                         user_data_dir = str(tmp)
                         logger.info(f"Copied profile to temp: {tmp}")
                     except Exception as e:
-                        logger.warning(f"Failed to copy profile: {e}, using clean profile")
+                        logger.warning(
+                            f"Failed to copy profile: {e}, using clean profile"
+                        )
             else:
                 # Use existing profile directly (requires all Chrome instances to be closed)
                 user_data_dir = str(src_user_data_dir)
-                logger.warning("Using existing profile directly - ensure all Chrome instances are closed")
+                logger.warning(
+                    "Using existing profile directly - ensure all Chrome instances are closed"
+                )
 
         elif clean_profile_instead:
             # Create fresh profile
@@ -211,7 +233,11 @@ class PlaywrightBrowser:
                     viewport={"width": 1920, "height": 1080},
                     accept_downloads=True,
                 )
-                self.page = self._context.pages[0] if self._context.pages else self._context.new_page()
+                self.page = (
+                    self._context.pages[0]
+                    if self._context.pages
+                    else self._context.new_page()
+                )
             else:
                 # Launch without profile
                 self._browser = browser_type.launch(
@@ -229,7 +255,9 @@ class PlaywrightBrowser:
             self.page.set_default_timeout(DEFAULT_ELEMENT_TIMEOUT)
             self.page.set_default_navigation_timeout(self._page_load_timeout_ms)
 
-            logger.info(f"Playwright {self._browser_type_name} browser initialized successfully")
+            logger.info(
+                f"Playwright {self._browser_type_name} browser initialized successfully"
+            )
 
         except Exception as e:
             logger.error(f"Failed to launch Playwright browser: {e}")
@@ -284,7 +312,9 @@ class PlaywrightBrowser:
             logger.error(f"Failed to capture screenshot: {e}")
             raise BrowserError(f"Screenshot capture failed: {e}") from e
 
-    def wait_for_selector(self, selector: str, timeout: Optional[int] = None, state: str = "visible"):
+    def wait_for_selector(
+        self, selector: str, timeout: Optional[int] = None, state: str = "visible"
+    ):
         """
         Wait for element to appear
 
@@ -297,7 +327,9 @@ class PlaywrightBrowser:
             Element handle
         """
         try:
-            element = self.page.wait_for_selector(selector, timeout=timeout, state=state)
+            element = self.page.wait_for_selector(
+                selector, timeout=timeout, state=state
+            )
             return element
         except Exception as e:
             logger.error(f"Element not found: {selector} - {e}")
@@ -359,7 +391,9 @@ class PlaywrightBrowser:
                     shutil.rmtree(self._temp_profile_dir, ignore_errors=True)
                     logger.debug(f"Cleaned up temp profile: {self._temp_profile_dir}")
                 except Exception as e:
-                    logger.warning(f"Could not remove temp profile dir {self._temp_profile_dir}: {e}")
+                    logger.warning(
+                        f"Could not remove temp profile dir {self._temp_profile_dir}: {e}"
+                    )
             self._temp_profile_dir = None
 
     def __enter__(self):

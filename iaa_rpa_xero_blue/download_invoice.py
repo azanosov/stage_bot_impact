@@ -53,7 +53,6 @@ from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog, xpath_literal
 from . import common
 from . import config
 
-
 logger = setup_logger(__name__)
 
 
@@ -86,11 +85,23 @@ class InvoiceRequest:
 
     def __post_init__(self) -> None:
         if not isinstance(self.invoice_number, str) or not self.invoice_number.strip():
-            raise DataValidationError("invoice_number is required and must be a non-empty string")
-        if not isinstance(self.download_directory, str) or not self.download_directory.strip():
-            raise DataValidationError("download_directory is required and must be a non-empty string")
-        if not isinstance(self.report_file_name, str) or not self.report_file_name.strip():
-            raise DataValidationError("report_file_name is required and must be a non-empty string")
+            raise DataValidationError(
+                "invoice_number is required and must be a non-empty string"
+            )
+        if (
+            not isinstance(self.download_directory, str)
+            or not self.download_directory.strip()
+        ):
+            raise DataValidationError(
+                "download_directory is required and must be a non-empty string"
+            )
+        if (
+            not isinstance(self.report_file_name, str)
+            or not self.report_file_name.strip()
+        ):
+            raise DataValidationError(
+                "report_file_name is required and must be a non-empty string"
+            )
 
         if self.capture_screenshots and not (self.screenshot_path or "").strip():
             raise DataValidationError(
@@ -100,7 +111,9 @@ class InvoiceRequest:
     @property
     def dest_path(self) -> str:
         # PDF only; build_dest_path adds .pdf when missing and never doubles it.
-        return common.build_dest_path(self.download_directory, self.report_file_name, _PDF_EXT)
+        return common.build_dest_path(
+            self.download_directory, self.report_file_name, _PDF_EXT
+        )
 
     def summary_lines(self) -> list[str]:
         rows = {
@@ -110,7 +123,9 @@ class InvoiceRequest:
             "Saved As": self.dest_path,
             "Window Title": self.window_title,
             "Capture Screenshots": self.capture_screenshots,
-            "Screenshot Path": self.screenshot_path if self.capture_screenshots else "(disabled)",
+            "Screenshot Path": (
+                self.screenshot_path if self.capture_screenshots else "(disabled)"
+            ),
         }
         width = max(map(len, rows))
         return [f"{label:<{width}} : {value}" for label, value in rows.items()]
@@ -164,7 +179,10 @@ def find_invoice(browser, request: InvoiceRequest) -> None:
     # Search has run: capture the results before the found/not-found check, so a
     # not-found invoice still gets its evidence screenshot.
     common.capture_report_screenshot(
-        browser, request.screenshot_path, "invoice", "search_results",
+        browser,
+        request.screenshot_path,
+        "invoice",
+        "search_results",
         enabled=request.capture_screenshots,
     )
 
@@ -177,11 +195,15 @@ def open_invoice(browser, request: InvoiceRequest) -> None:
 
     row_link = config.INV_ROW_LINK_BY_NUMBER_TPL.format(invoice=number_literal)
     if not browser.does_page_contain_element(row_link, timeout=timeout):
-        raise DataExtractionError(f"Invoice not found in Xero Blue: {request.invoice_number!r}")
+        raise DataExtractionError(
+            f"Invoice not found in Xero Blue: {request.invoice_number!r}"
+        )
     browser.click_element(row_link, timeout=timeout)
     logger.info(f"Opened invoice row: '{request.invoice_number}'")
 
-    heading = config.INV_DETAIL_HEADING_TPL.format(heading=xpath_literal(f"Invoice {request.invoice_number}"))
+    heading = config.INV_DETAIL_HEADING_TPL.format(
+        heading=xpath_literal(f"Invoice {request.invoice_number}")
+    )
     if not browser.does_page_contain_element(heading, timeout=timeout):
         raise DataExtractionError(
             f"Invoice detail page did not open for {request.invoice_number!r}"
@@ -195,7 +217,7 @@ def print_invoice_to_pdf(browser, request: InvoiceRequest) -> None:
     logger.info("Clicking 'Print PDF'...")
     browser.click_element(config.INV_PRINT_PDF_BUTTON, timeout=common.EXPORT_TIMEOUT)
 
-    time.sleep(2)   # brief settle so the save dialog has rendered
+    time.sleep(2)  # brief settle so the save dialog has rendered
 
     dest_path = request.dest_path
     logger.info(f"Handling file save dialog - saving to: '{dest_path}'")
@@ -204,7 +226,7 @@ def print_invoice_to_pdf(browser, request: InvoiceRequest) -> None:
         dest_path=dest_path,
     )
 
-    common.verify_saved_file(dest_path)  
+    common.verify_saved_file(dest_path)
     logger.info(f"Invoice PDF saved: '{dest_path}'")
 
     dismiss_mark_as_sent(browser)
@@ -213,8 +235,12 @@ def print_invoice_to_pdf(browser, request: InvoiceRequest) -> None:
 def dismiss_mark_as_sent(browser) -> None:
     """If the Mark-as-Sent modal appears after printing, click Cancel to dismiss
     it WITHOUT marking the invoice as sent. Best-effort - absence is fine."""
-    if browser.does_page_contain_element(config.INV_MARK_AS_SENT_MODAL, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
-        browser.click_element(config.INV_MARK_AS_SENT_CANCEL, timeout=common.DEFAULT_ELEMENT_TIMEOUT)
+    if browser.does_page_contain_element(
+        config.INV_MARK_AS_SENT_MODAL, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    ):
+        browser.click_element(
+            config.INV_MARK_AS_SENT_CANCEL, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+        )
         logger.info("Dismissed the Mark-as-Sent modal (Cancel)")
     else:
         logger.info("No Mark-as-Sent modal appeared - nothing to dismiss")

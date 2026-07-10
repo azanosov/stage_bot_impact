@@ -58,18 +58,23 @@ def xero_blue_download_gst_recconciliation_report(
     start_time = datetime.now()
 
     logger.info("STARTING: xero_blue_download_gst_recconciliation_report")
-    logger.info(json.dumps({
-        "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
-        "xero_client_name": xero_client_name,
-        "xero_end_date": xero_end_date,
-        "xero_financial_year": xero_financial_year,
-        "xero_start_date": xero_start_date,
-        "window_title": window_title,
-        "download_directory": download_directory,
-        "report_file_name": report_file_name,
-        "xero_report_name": xero_report_name,
-        "extension": extension,
-    }, indent=2))
+    logger.info(
+        json.dumps(
+            {
+                "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+                "xero_client_name": xero_client_name,
+                "xero_end_date": xero_end_date,
+                "xero_financial_year": xero_financial_year,
+                "xero_start_date": xero_start_date,
+                "window_title": window_title,
+                "download_directory": download_directory,
+                "report_file_name": report_file_name,
+                "xero_report_name": xero_report_name,
+                "extension": extension,
+            },
+            indent=2,
+        )
+    )
 
     try:
         driver = browser.driver
@@ -122,7 +127,9 @@ def xero_blue_download_gst_recconciliation_report(
         logger.error(f"Error             : {e}")
         logger.error(f"Status            : FAILED")
         logger.error("=" * 80)
-        logger.error("xero_blue_download_gst_recconciliation_report failed", exc_info=True)
+        logger.error(
+            "xero_blue_download_gst_recconciliation_report failed", exc_info=True
+        )
         raise
 
 
@@ -134,18 +141,20 @@ def resolve_report_dates(
     """Return (start_date, end_date), defaulting to the full financial year if not provided."""
     if not xero_start_date:
         str_start_date = f"1 Jul {int(xero_financial_year) - 1}"
-        logger.info(f"No custom start date provided. Using financial year default: {str_start_date}")
+        logger.info(
+            f"No custom start date provided. Using financial year default: {str_start_date}"
+        )
     else:
         str_start_date = xero_start_date
         logger.info(f"Using provided start date: {str_start_date}")
 
     if not xero_end_date:
         str_end_date = f"30 Jun {xero_financial_year}"
-        logger.info(f"No custom end date provided. Using financial year default: {str_end_date}")
+        logger.info(
+            f"No custom end date provided. Using financial year default: {str_end_date}"
+        )
     else:
         str_end_date = xero_end_date
         logger.info(f"Using provided end date: {str_end_date}")
 
     return str_start_date, str_end_date
-
-

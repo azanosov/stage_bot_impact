@@ -5,7 +5,6 @@ If you need the functionality provided by this module,
 please first contact Praveen Lobo and/or Alexander Zanosov.
 """
 
-
 # """
 # Module: xero_blue_get_invoice_link
 # This module automates the process of retrieving invoice URLs from Xero Blue

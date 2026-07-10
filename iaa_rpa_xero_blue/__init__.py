@@ -22,7 +22,7 @@ from importlib.metadata import PackageNotFoundError, version
 
 try:
     __version__ = version("iaa-rpa-xero-blue")
-except PackageNotFoundError:          # running from a source checkout, not installed
+except PackageNotFoundError:  # running from a source checkout, not installed
     __version__ = "1.0.0"
 
 # --- Session / auth ---
@@ -40,6 +40,7 @@ from .navigation import (
 from .download_trial_balance import TrialBalanceRequest, download_trial_balance_report
 from .download_bank_reconciliation import (
     BankReconciliationRequest,
+    download_bank_reconciliation_multi_accounts,
     download_bank_reconciliation_report,
     list_all_bank_accounts,
 )
@@ -110,6 +111,8 @@ __all__ = [
     "download_trial_balance_report",
     # bank reconciliation
     "BankReconciliationRequest",
+    "BankReconciliationMultiRequest",
+    "download_bank_reconciliation_multi_account",
     "download_bank_reconciliation_report",
     "list_all_bank_accounts",
     # profit and loss

@@ -4,6 +4,7 @@ from time import perf_counter
 
 class _MaxLevelFilter(logging.Filter):
     """Allow records up to (and including) max_level."""
+
     def __init__(self, max_level: int):
         super().__init__()
         self.max_level = max_level
@@ -30,6 +31,7 @@ def get_logger(name: str) -> logging.Logger:
 
 class ProcessLogger:
     """Context manager for timing & success/failure logs."""
+
     def __init__(self, process_name: str, logger: logging.Logger | None = None):
         self.process_name = process_name
         self.logger = logger or logging.getLogger(__name__)

@@ -67,6 +67,7 @@ _SUPPORTED_PREFIXES = ("TFN", "ABN")
 # PUBLIC API
 # ====================================================================================
 
+
 def parse_client_id(
     client_id: str,
     visible_digits: int,
@@ -174,13 +175,15 @@ def parse_client_id(
         )
 
     # Strip the matched prefix and any surrounding whitespace to get the bare number.
-    search_number = client_id.strip()[len(matched_prefix):].strip()
+    search_number = client_id.strip()[len(matched_prefix) :].strip()
     search_type = matched_prefix  # already upper-cased
 
     # ====================================================================
     # LOGGING  (masked for security)
     # ====================================================================
-    masked = mask_sensitive_id(search_number, visible_digits=visible_digits, mask_position=mask_position)
+    masked = mask_sensitive_id(
+        search_number, visible_digits=visible_digits, mask_position=mask_position
+    )
     _logger.info(f"parse_client_id: type={search_type} | number={masked}")
 
     return search_number, search_type

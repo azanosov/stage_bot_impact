@@ -60,7 +60,6 @@ from iaa_rpa_utils.exceptions import (
 from . import common
 from . import config
 
-
 logger = setup_logger(__name__)
 
 __all__ = [
@@ -71,6 +70,7 @@ __all__ = [
 # ====================================================================================
 # PUBLIC API
 # ====================================================================================
+
 
 def switch_client(browser, account_name: str) -> None:
     """
@@ -97,7 +97,9 @@ def switch_client(browser, account_name: str) -> None:
         ElementNotFoundError: If an expected control is absent.
     """
     if not isinstance(account_name, str) or not account_name.strip():
-        raise DataValidationError("account_name is required and must be a non-empty string")
+        raise DataValidationError(
+            "account_name is required and must be a non-empty string"
+        )
     account = account_name.strip()
 
     with ProcessLogger("Xero Blue Switch Client", logger):
@@ -120,17 +122,22 @@ def switch_client(browser, account_name: str) -> None:
 # NEW-UI FLOW
 # ====================================================================================
 
+
 def _switch_new_ui(browser, account: str) -> None:
     """Switch organisation using the new (Home-based) UI, verifying the result."""
     # Navigate Home to reach the organisation selector.
     browser.click_element(config.NAV_HOME_LINK, timeout=common.DETECTION_TIMEOUT)
 
     if _client_selected_new_ui(browser, account, common.DEFAULT_ELEMENT_TIMEOUT):
-        logger.info(f"'{account}' is already the active organisation - no switch needed")
+        logger.info(
+            f"'{account}' is already the active organisation - no switch needed"
+        )
         return
 
     # Open the organisation selector (see SWITCH_NEW_USER_BUTTON note re: fragility).
-    browser.click_element(config.SWITCH_NEW_USER_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT)
+    browser.click_element(
+        config.SWITCH_NEW_USER_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    )
     logger.info("Opened organisation selector")
 
     _select_organisation_new_ui(browser, account)
@@ -146,19 +153,35 @@ def _switch_new_ui(browser, account: str) -> None:
 
 def _select_organisation_new_ui(browser, account: str) -> None:
     """Search for and click the target organisation in the new UI selector."""
-    if not browser.does_page_contain_element(config.SWITCH_NEW_SEARCH, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
-        raise ElementNotFoundError("Organisation search input did not appear in the new UI.")
+    if not browser.does_page_contain_element(
+        config.SWITCH_NEW_SEARCH, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    ):
+        raise ElementNotFoundError(
+            "Organisation search input did not appear in the new UI."
+        )
 
-    browser.click_element(config.SWITCH_NEW_SEARCH, timeout=common.DEFAULT_ELEMENT_TIMEOUT)
-    browser.type_text(config.SWITCH_NEW_SEARCH, account, timeout=common.DEFAULT_ELEMENT_TIMEOUT)  # clears, then types
+    browser.click_element(
+        config.SWITCH_NEW_SEARCH, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    )
+    browser.type_text(
+        config.SWITCH_NEW_SEARCH, account, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    )  # clears, then types
     logger.info(f"Searched organisations for: '{account}'")
 
-    if browser.does_page_contain_element(config.SWITCH_NEW_NO_RESULTS, timeout=common.DETECTION_TIMEOUT):
+    if browser.does_page_contain_element(
+        config.SWITCH_NEW_NO_RESULTS, timeout=common.DETECTION_TIMEOUT
+    ):
         raise DataValidationError(f"Organisation does not exist in Xero: '{account}'")
 
-    account_link = config.SWITCH_NEW_ACCOUNT_LINK_TPL.format(account_literal=xpath_literal(account))
-    if not browser.does_page_contain_element(account_link, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
-        raise DataValidationError(f"Organisation '{account}' not present in search results.")
+    account_link = config.SWITCH_NEW_ACCOUNT_LINK_TPL.format(
+        account_literal=xpath_literal(account)
+    )
+    if not browser.does_page_contain_element(
+        account_link, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    ):
+        raise DataValidationError(
+            f"Organisation '{account}' not present in search results."
+        )
 
     browser.click_element(account_link, timeout=common.DEFAULT_ELEMENT_TIMEOUT)
     logger.info(f"Selected organisation: '{account}'")
@@ -166,7 +189,9 @@ def _select_organisation_new_ui(browser, account: str) -> None:
 
 def _client_selected_new_ui(browser, account: str, timeout: int) -> bool:
     """True if ``account`` is shown as the active organisation in the new UI."""
-    locator = config.SWITCH_NEW_ACTIVE_ORG_TPL.format(account_literal=xpath_literal(account))
+    locator = config.SWITCH_NEW_ACTIVE_ORG_TPL.format(
+        account_literal=xpath_literal(account)
+    )
     return browser.does_page_contain_element(locator, timeout=timeout)
 
 
@@ -179,13 +204,16 @@ def _has_home_page(browser, timeout: int) -> bool:
 # LEGACY-UI FLOW
 # ====================================================================================
 
+
 def _switch_old_ui(browser, account: str) -> None:
     """Switch organisation using the legacy (Dashboard-based) UI, verifying result."""
     browser.click_element(config.NAV_DASHBOARD_LINK, timeout=common.DETECTION_TIMEOUT)
     logger.info("Navigated to Dashboard")
 
     if _client_selected_old_ui(browser, account, common.DEFAULT_ELEMENT_TIMEOUT):
-        logger.info(f"'{account}' is already the active organisation - no switch needed")
+        logger.info(
+            f"'{account}' is already the active organisation - no switch needed"
+        )
         return
 
     _select_organisation_old_ui(browser, account)
@@ -200,28 +228,50 @@ def _switch_old_ui(browser, account: str) -> None:
 
 def _select_organisation_old_ui(browser, account: str) -> None:
     """Open the legacy account selector, search, and click the target organisation."""
-    if not browser.does_page_contain_element(config.SWITCH_OLD_CHANGE_ORG, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
-        raise ElementNotFoundError("'Change organisation' control not found in the legacy UI.")
+    if not browser.does_page_contain_element(
+        config.SWITCH_OLD_CHANGE_ORG, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    ):
+        raise ElementNotFoundError(
+            "'Change organisation' control not found in the legacy UI."
+        )
 
     # Open the account selector.
-    browser.click_element(config.SWITCH_OLD_ACCOUNT_SELECT, timeout=common.DEFAULT_ELEMENT_TIMEOUT)
+    browser.click_element(
+        config.SWITCH_OLD_ACCOUNT_SELECT, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    )
     logger.info("Opened account selector")
 
-    if not browser.does_page_contain_element(config.SWITCH_OLD_SEARCH_ORG, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
+    if not browser.does_page_contain_element(
+        config.SWITCH_OLD_SEARCH_ORG, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    ):
         raise ElementNotFoundError("'Search organisations' control did not appear.")
-    browser.click_element(config.SWITCH_OLD_SEARCH_ORG, timeout=common.DEFAULT_ELEMENT_TIMEOUT)
+    browser.click_element(
+        config.SWITCH_OLD_SEARCH_ORG, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    )
 
-    if not browser.does_page_contain_element(config.SWITCH_OLD_SEARCH_BOX, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
+    if not browser.does_page_contain_element(
+        config.SWITCH_OLD_SEARCH_BOX, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    ):
         raise ElementNotFoundError("Organisation search box did not appear.")
-    browser.click_element(config.SWITCH_OLD_SEARCH_BOX, timeout=common.DEFAULT_ELEMENT_TIMEOUT)
-    browser.type_text(config.SWITCH_OLD_SEARCH_BOX, account, timeout=common.DEFAULT_ELEMENT_TIMEOUT)  # clears, then types
+    browser.click_element(
+        config.SWITCH_OLD_SEARCH_BOX, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    )
+    browser.type_text(
+        config.SWITCH_OLD_SEARCH_BOX, account, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    )  # clears, then types
     logger.info(f"Searched organisations for: '{account}'")
 
-    if browser.does_page_contain_element(config.SWITCH_OLD_NO_RESULTS, timeout=common.DETECTION_TIMEOUT):
+    if browser.does_page_contain_element(
+        config.SWITCH_OLD_NO_RESULTS, timeout=common.DETECTION_TIMEOUT
+    ):
         raise DataValidationError(f"Organisation does not exist in Xero: '{account}'")
 
-    account_link = config.SWITCH_OLD_ACCOUNT_LINK_TPL.format(account_literal=xpath_literal(account))
-    if not browser.does_page_contain_element(account_link, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
+    account_link = config.SWITCH_OLD_ACCOUNT_LINK_TPL.format(
+        account_literal=xpath_literal(account)
+    )
+    if not browser.does_page_contain_element(
+        account_link, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    ):
         raise DataValidationError(f"Organisation '{account}' not present in results.")
 
     browser.click_element(account_link, timeout=common.DEFAULT_ELEMENT_TIMEOUT)
@@ -230,7 +280,9 @@ def _select_organisation_old_ui(browser, account: str) -> None:
 
 def _client_selected_old_ui(browser, account: str, timeout: int) -> bool:
     """True if ``account`` is shown as the active organisation in the legacy UI."""
-    locator = config.SWITCH_OLD_ACTIVE_ORG_TPL.format(account_literal=xpath_literal(account))
+    locator = config.SWITCH_OLD_ACTIVE_ORG_TPL.format(
+        account_literal=xpath_literal(account)
+    )
     return browser.does_page_contain_element(locator, timeout=timeout)
 
 

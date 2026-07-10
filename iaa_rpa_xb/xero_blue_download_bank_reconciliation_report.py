@@ -67,11 +67,17 @@ def xero_blue_download_bank_reconciliation_report(
     """
     start_time = datetime.now()
     logger.info("=" * 80)
-    logger.info(f"STARTING: Xero Blue - Download Bank Reconciliation Report - {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(
+        f"STARTING: Xero Blue - Download Bank Reconciliation Report - {start_time.strftime('%Y-%m-%d %H:%M:%S')}"
+    )
     logger.info(f"Client Name: {client_name}")
     logger.info(f"Bank Account: {xero_bank_account}")
-    logger.info(f"Start Date: {xero_start_date if xero_start_date else f'1 Jul {int(xero_financial_year) - 1}'}")
-    logger.info(f"End Date: {xero_end_date if xero_end_date else f'30 Jun {xero_financial_year}'}")
+    logger.info(
+        f"Start Date: {xero_start_date if xero_start_date else f'1 Jul {int(xero_financial_year) - 1}'}"
+    )
+    logger.info(
+        f"End Date: {xero_end_date if xero_end_date else f'30 Jun {xero_financial_year}'}"
+    )
     logger.info(f"Financial Year: {xero_financial_year}")
     logger.info(f"Report File Name: {report_file_name}")
     logger.info(f"Download Directory: {download_directory}")
@@ -96,7 +102,9 @@ def xero_blue_download_bank_reconciliation_report(
         end_time = datetime.now()
         duration = (end_time - start_time).total_seconds()
         logger.info("=" * 80)
-        logger.info(f"COMPLETED: Xero Blue - Download Bank Reconciliation Report - {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info(
+            f"COMPLETED: Xero Blue - Download Bank Reconciliation Report - {end_time.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
         logger.info(f"Duration: {duration:.2f} seconds")
         logger.info(f"Client Name: {client_name}")
         logger.info(f"Bank Account: {xero_bank_account or 'all accounts'}")
@@ -109,7 +117,9 @@ def xero_blue_download_bank_reconciliation_report(
         end_time = datetime.now()
         duration = (end_time - start_time).total_seconds()
         logger.error("=" * 80)
-        logger.error(f"FAILED: Xero Blue - Download Bank Reconciliation Report - {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.error(
+            f"FAILED: Xero Blue - Download Bank Reconciliation Report - {end_time.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
         logger.error(f"Duration: {duration:.2f} seconds")
         logger.error(f"Client Name: {client_name}")
         logger.error(f"Bank Account: {xero_bank_account or 'all accounts'}")
@@ -163,7 +173,9 @@ def configure_bank_account_and_date_range(
     # STEP 2: Validate Bank Account Availability
     logger.info("Validating bank account availability...")
     is_no_bank_accounts = has_no_bank_accounts(browser)
-    logger.info(f"Bank account availability check result — No bank accounts: {is_no_bank_accounts}")
+    logger.info(
+        f"Bank account availability check result — No bank accounts: {is_no_bank_accounts}"
+    )
 
     if is_no_bank_accounts:
         return []
@@ -180,20 +192,28 @@ def configure_bank_account_and_date_range(
 
     # STEP 4: Enter Start Date
     logger.info(f"Entering start date: {str_start_date}")
-    helper.type_into_date_element(driver, "report-settings-custom-date-input-from", str_start_date, by=By.ID)
+    helper.type_into_date_element(
+        driver, "report-settings-custom-date-input-from", str_start_date, by=By.ID
+    )
     logger.info(f"Start date entered successfully: {str_start_date}")
 
     # STEP 5: Enter End Date
     logger.info(f"Entering end date: {str_end_date}")
-    helper.type_into_date_element(driver, "report-settings-custom-date-input-to", str_end_date, by=By.ID)
+    helper.type_into_date_element(
+        driver, "report-settings-custom-date-input-to", str_end_date, by=By.ID
+    )
     logger.info(f"End date entered successfully: {str_end_date}")
 
     # STEP 6: Determine which bank accounts to process
     if not xero_bank_account:
-        logger.info("No bank account specified — retrieving all available bank accounts...")
+        logger.info(
+            "No bank account specified — retrieving all available bank accounts..."
+        )
         helper.click_element(driver, search_bank_account_xpath)
         bank_accounts = get_all_bank_accounts(driver)
-        logger.info(f"Found {len(bank_accounts)} bank accounts to process: {bank_accounts}")
+        logger.info(
+            f"Found {len(bank_accounts)} bank accounts to process: {bank_accounts}"
+        )
     else:
         bank_accounts = [xero_bank_account]
         logger.info(f"Processing single bank account: {xero_bank_account}")
@@ -216,7 +236,7 @@ def configure_bank_account_and_date_range(
 
         # Append sanitised account name to file name when processing all accounts
         if not xero_bank_account:
-            safe_name = re.sub(r'[\\/*?:"<>|]', '_', account).strip()
+            safe_name = re.sub(r'[\\/*?:"<>|]', "_", account).strip()
             file_name = f"{report_file_name}_{safe_name}"
         else:
             file_name = report_file_name
@@ -245,7 +265,11 @@ def get_all_bank_accounts(driver: Any) -> list[str]:
     elements = WebDriverWait(driver, 10).until(
         EC.presence_of_all_elements_located((By.XPATH, list_item_xpath))
     )
-    accounts = [el.get_attribute("aria-label") for el in elements if el.get_attribute("aria-label")]
+    accounts = [
+        el.get_attribute("aria-label")
+        for el in elements
+        if el.get_attribute("aria-label")
+    ]
     logger.info(f"Retrieved {len(accounts)} bank accounts from dropdown: {accounts}")
     return accounts
 
@@ -268,15 +292,21 @@ def has_no_bank_accounts(browser: Any) -> bool:
         WebDriverWait(driver, 5).until(
             EC.visibility_of_element_located((By.XPATH, no_bank_account_xpath)),
         )
-        logger.info("Validation result: No bank accounts are configured for this organisation")
+        logger.info(
+            "Validation result: No bank accounts are configured for this organisation"
+        )
         return True
 
     except Exception:
-        logger.info("Validation result: Bank accounts exist for this organisation — proceeding with configuration")
+        logger.info(
+            "Validation result: Bank accounts exist for this organisation — proceeding with configuration"
+        )
         return False
 
 
-def resolve_report_date_range(xero_end_date: str | None, xero_financial_year: str, xero_start_date: str | None) -> tuple[str, str]:
+def resolve_report_date_range(
+    xero_end_date: str | None, xero_financial_year: str, xero_start_date: str | None
+) -> tuple[str, str]:
     """
     Determine the report date range based on input parameters.
 
@@ -294,12 +324,14 @@ def resolve_report_date_range(xero_end_date: str | None, xero_financial_year: st
     if not xero_end_date or not xero_start_date:
         str_start_date = f"1 Jul {int(xero_financial_year) - 1}"
         str_end_date = f"30 Jun {xero_financial_year}"
-        logger.info(f"No custom dates provided — using default financial year range: {str_start_date} to {str_end_date}")
+        logger.info(
+            f"No custom dates provided — using default financial year range: {str_start_date} to {str_end_date}"
+        )
     else:
         str_start_date = xero_start_date
         str_end_date = xero_end_date
-        logger.info(f"Custom dates provided — using input date range: {str_start_date} to {str_end_date}")
+        logger.info(
+            f"Custom dates provided — using input date range: {str_start_date} to {str_end_date}"
+        )
 
     return str_start_date, str_end_date
-
-

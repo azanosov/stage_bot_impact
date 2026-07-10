@@ -15,6 +15,7 @@ CRED_PERSIST_LOCAL_MACHINE = 2
 
 CREDENTIAL_PREFIX = "iaAutomate:"
 
+
 @dataclass
 class Credential:
     """Represents a credential from Windows Credential Manager."""
@@ -52,7 +53,12 @@ class _CREDENTIAL(ctypes.Structure):
 _advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
 
 _CredReadW = _advapi32.CredReadW
-_CredReadW.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.POINTER(ctypes.POINTER(_CREDENTIAL))]
+_CredReadW.argtypes = [
+    wintypes.LPCWSTR,
+    wintypes.DWORD,
+    wintypes.DWORD,
+    ctypes.POINTER(ctypes.POINTER(_CREDENTIAL)),
+]
 _CredReadW.restype = wintypes.BOOL
 
 _CredWriteW = _advapi32.CredWriteW
@@ -76,8 +82,10 @@ _CredFree = _advapi32.CredFree
 _CredFree.argtypes = [ctypes.c_void_p]
 _CredFree.restype = None
 
+
 def __repr__(self) -> str:
     return f"Credential(name={self.name!r}, username={self.username!r}, password='***')"
+
 
 def _get_full_target_name(name: str) -> str:
     """Prepend the iaAutomate prefix to a credential name."""
@@ -122,9 +130,13 @@ def get_credential(name: str) -> Optional[Credential]:
         # Extract password from CredentialBlob
         password = ""
         if cred.CredentialBlobSize > 0 and cred.CredentialBlob:
-            blob_bytes = bytes(cred.CredentialBlob[i] for i in range(cred.CredentialBlobSize))
+            blob_bytes = bytes(
+                cred.CredentialBlob[i] for i in range(cred.CredentialBlobSize)
+            )
             password = blob_bytes.decode("utf-16-le")
 
-        return Credential(name=_strip_prefix(cred.TargetName), username=username, password=password)
+        return Credential(
+            name=_strip_prefix(cred.TargetName), username=username, password=password
+        )
     finally:
         _CredFree(cred_ptr)

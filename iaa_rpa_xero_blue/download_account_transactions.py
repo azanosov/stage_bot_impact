@@ -71,7 +71,6 @@ from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog, xpath_literal
 from . import common
 from . import config
 
-
 logger = setup_logger(__name__)
 
 
@@ -113,6 +112,10 @@ class AccountTransactionsRequest:
         accounts:           "All" (default) or a list of exact account labels.
         export_format:      "excel" (default, .xlsx) or "pdf" (.pdf).
         window_title:       Title used to locate the Chrome Save As window.
+        capture_screenshots: Whether to capture before/after screenshots during
+            export (default True). When True, screenshot_path is required.
+        screenshot_path: Directory screenshots are written to. Required when
+            capture_screenshots is True; may be None when it is False.
 
     Raises (on construction):
         DataValidationError: if any input fails validation.
@@ -130,10 +133,20 @@ class AccountTransactionsRequest:
     screenshot_path: str | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.download_directory, str) or not self.download_directory.strip():
-            raise DataValidationError("download_directory is required and must be a non-empty string")
-        if not isinstance(self.report_file_name, str) or not self.report_file_name.strip():
-            raise DataValidationError("report_file_name is required and must be a non-empty string")
+        if (
+            not isinstance(self.download_directory, str)
+            or not self.download_directory.strip()
+        ):
+            raise DataValidationError(
+                "download_directory is required and must be a non-empty string"
+            )
+        if (
+            not isinstance(self.report_file_name, str)
+            or not self.report_file_name.strip()
+        ):
+            raise DataValidationError(
+                "report_file_name is required and must be a non-empty string"
+            )
 
         if self.export_format not in get_args(ExportFormat):
             raise DataValidationError(
@@ -161,15 +174,26 @@ class AccountTransactionsRequest:
                 f"got {type(self.accounts).__name__}"
             )
 
-        for value, name in ((self.start_date, "start_date"), (self.end_date, "end_date")):
+        for value, name in (
+            (self.start_date, "start_date"),
+            (self.end_date, "end_date"),
+        ):
             if value is not None and not isinstance(value, date):
-                raise DataValidationError(f"{name} must be a datetime.date, got {type(value).__name__}")
+                raise DataValidationError(
+                    f"{name} must be a datetime.date, got {type(value).__name__}"
+                )
 
-        if (self.start_date is None or self.end_date is None) and self.financial_year is None:
-            raise DataValidationError("financial_year is required when start_date or end_date is omitted")
+        if (
+            self.start_date is None or self.end_date is None
+        ) and self.financial_year is None:
+            raise DataValidationError(
+                "financial_year is required when start_date or end_date is omitted"
+            )
 
         if self.financial_year is not None:
-            if not isinstance(self.financial_year, int) or isinstance(self.financial_year, bool):
+            if not isinstance(self.financial_year, int) or isinstance(
+                self.financial_year, bool
+            ):
                 raise DataValidationError(
                     f"financial_year must be an int, got {type(self.financial_year).__name__}"
                 )
@@ -180,7 +204,11 @@ class AccountTransactionsRequest:
                     f"got {self.financial_year}"
                 )
 
-        if self.start_date is not None and self.end_date is not None and self.start_date > self.end_date:
+        if (
+            self.start_date is not None
+            and self.end_date is not None
+            and self.start_date > self.end_date
+        ):
             raise DataValidationError(
                 f"start_date ({self.start_date}) must not be after end_date ({self.end_date})"
             )
@@ -216,14 +244,24 @@ class AccountTransactionsRequest:
 
     @property
     def dest_path(self) -> str:
-        return common.build_dest_path(self.download_directory, self.report_file_name, self.saved_extension)
+        return common.build_dest_path(
+            self.download_directory, self.report_file_name, self.saved_extension
+        )
 
     def summary_lines(self) -> list[str]:
-        accounts_desc = "All accounts" if self.select_all_accounts else f"{len(self.accounts)} account(s)"
+        accounts_desc = (
+            "All accounts"
+            if self.select_all_accounts
+            else f"{len(self.accounts)} account(s)"
+        )
         rows = {
             "Start Date": self.resolved_start_date,
             "End Date": self.resolved_end_date,
-            "Financial Year": self.financial_year if self.financial_year is not None else "(from dates)",
+            "Financial Year": (
+                self.financial_year
+                if self.financial_year is not None
+                else "(from dates)"
+            ),
             "Accounts": accounts_desc,
             "Export Format": self.export_format,
             "Saved Extension": self.saved_extension,
@@ -231,13 +269,17 @@ class AccountTransactionsRequest:
             "Report File Name": self.report_file_name,
             "Window Title": self.window_title,
             "Capture Screenshots": self.capture_screenshots,
-            "Screenshot Path": self.screenshot_path if self.capture_screenshots else "(disabled)",
+            "Screenshot Path": (
+                self.screenshot_path if self.capture_screenshots else "(disabled)"
+            ),
         }
         width = max(map(len, rows))
         return [f"{label:<{width}} : {value}" for label, value in rows.items()]
 
 
-def download_account_transactions_report(browser, request: AccountTransactionsRequest) -> None:
+def download_account_transactions_report(
+    browser, request: AccountTransactionsRequest
+) -> str:
     """
     Download an Account Transactions report from Xero Blue.
 
@@ -245,6 +287,9 @@ def download_account_transactions_report(browser, request: AccountTransactionsRe
         STEP 1 - enter the date range
         STEP 2 - set the accounts filter (all, or an exact set)
         STEP 3 - update, confirm data, export, and verify the saved file
+
+    Returns:
+        str: The full path of the saved report (directory + filename + extension).
 
     Raises:
         Re-raises any exception after ``ProcessLogger`` has logged it.
@@ -263,13 +308,16 @@ def download_account_transactions_report(browser, request: AccountTransactionsRe
         logger.info("STEP 2 COMPLETED: accounts filter set")
 
         logger.info("STEP 3: Updating report and exporting...")
-        update_and_export_report(browser, request)
+        _dest = update_and_export_report(browser, request)
         logger.info("STEP 3 COMPLETED: report exported and file saved")
+        return _dest
 
 
 def configure_report_dates(browser, request: AccountTransactionsRequest) -> None:
     """Enter the From (start) and To (end) dates."""
-    common.clear_and_type(browser, config.SH_DATE_FROM_INPUT, request.resolved_start_date)
+    common.clear_and_type(
+        browser, config.SH_DATE_FROM_INPUT, request.resolved_start_date
+    )
     logger.info(f"Entered start date: {request.resolved_start_date}")
     common.clear_and_type(browser, config.SH_DATE_TO_INPUT, request.resolved_end_date)
     logger.info(f"Entered end date: {request.resolved_end_date}")
@@ -305,7 +353,9 @@ def configure_accounts(browser, request: AccountTransactionsRequest) -> None:
         _search_accounts(browser, account, timeout)
         item_locator = config.ACCT_ITEM_BODY_TPL.format(label=xpath_literal(account))
         if not browser.does_page_contain_element(item_locator, timeout=timeout):
-            raise DataExtractionError(f"Requested account not found in the selector: {account!r}")
+            raise DataExtractionError(
+                f"Requested account not found in the selector: {account!r}"
+            )
         browser.click_element(item_locator, timeout=timeout)
         logger.info(f"Selected account: '{account}'")
 
@@ -319,11 +369,14 @@ def _search_accounts(browser, term: str, timeout: int) -> None:
     browser.send_keys_to_active_element(term)
 
 
-def update_and_export_report(browser, request: AccountTransactionsRequest) -> None:
+def update_and_export_report(browser, request: AccountTransactionsRequest) -> str:
     """Update the report, confirm data exists, export to the chosen format, and
     verify the saved file."""
     common.capture_report_screenshot(
-        browser, request.screenshot_path, "account_transactions", "before_update",
+        browser,
+        request.screenshot_path,
+        "account_transactions",
+        "before_update",
         enabled=request.capture_screenshots,
     )
 
@@ -331,21 +384,34 @@ def update_and_export_report(browser, request: AccountTransactionsRequest) -> No
     browser.click_element(config.SH_UPDATE_BUTTON, timeout=common.EXPORT_TIMEOUT)
 
     # The Export button only renders when the report has data.
-    if not browser.does_page_contain_element(config.SH_EXPORT_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
-        logger.warning("Export button not found - no account transactions data for this selection")
-        raise DataExtractionError("No Account Transactions data available for this selection.")
+    if not browser.does_page_contain_element(
+        config.SH_EXPORT_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    ):
+        logger.warning(
+            "Export button not found - no account transactions data for this selection"
+        )
+        raise DataExtractionError(
+            "No Account Transactions data available for this selection."
+        )
     logger.info("'Export' button present - data confirmed")
 
-    logger.info(f"Exporting as '{request.export_format}' (saved as '{request.saved_extension}')...")
+    logger.info(
+        f"Exporting as '{request.export_format}' (saved as '{request.saved_extension}')..."
+    )
     common.capture_report_screenshot(
-        browser, request.screenshot_path, "account_transactions", "after_update",
+        browser,
+        request.screenshot_path,
+        "account_transactions",
+        "after_update",
         enabled=request.capture_screenshots,
     )
 
     browser.click_element(config.SH_EXPORT_BUTTON, timeout=common.EXPORT_TIMEOUT)
-    common.click_pickitem_by_id(browser, request.export_menu_id, timeout=common.EXPORT_TIMEOUT)
+    common.click_pickitem_by_id(
+        browser, request.export_menu_id, timeout=common.EXPORT_TIMEOUT
+    )
 
-    time.sleep(2)   # brief settle so the save dialog has rendered
+    time.sleep(2)  # brief settle so the save dialog has rendered
 
     dest_path = request.dest_path
     logger.info(f"Handling file save dialog - saving to: '{dest_path}'")
@@ -356,3 +422,4 @@ def update_and_export_report(browser, request: AccountTransactionsRequest) -> No
 
     common.verify_saved_file(dest_path)
     logger.info(f"File successfully saved: '{dest_path}'")
+    return dest_path

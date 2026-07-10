@@ -17,7 +17,6 @@ mfa = MFA()
 from iaa_rpa_utils import setup_logger
 from iaa_rpa_utils.browser import safe_click
 
-
 # Set up logger
 logger = setup_logger(__name__)
 
@@ -31,7 +30,7 @@ def xero_blue_login(
     xero_blue_authenticator_secret_key: str,
     max_retry: int,
     is_authentication_code_is_entered: bool,
-    is_user_logged_in_to_xero: bool
+    is_user_logged_in_to_xero: bool,
 ):
     """
     Orchestrate the complete Xero Blue login automation process.
@@ -58,7 +57,9 @@ def xero_blue_login(
     """
     start_time = datetime.now()
     logger.info("=" * 80)
-    logger.info(f"STARTING: Xero Blue Login Automation - {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(
+        f"STARTING: Xero Blue Login Automation - {start_time.strftime('%Y-%m-%d %H:%M:%S')}"
+    )
     logger.info(f"Xero Blue URL: {xero_blue_url}")
     logger.info(f"Payroll URL: {payroll_url}")
     logger.info(f"Email: {xero_email}")
@@ -66,8 +67,6 @@ def xero_blue_login(
     logger.info(f"Authentication code is entered: {is_authentication_code_is_entered}")
     logger.info(f"User logged in to xero: {is_user_logged_in_to_xero}")
     logger.info("=" * 80)
-
-    
 
     try:
 
@@ -103,15 +102,21 @@ def xero_blue_login(
             logger.info("Final verification passed — user is logged in to Xero Blue")
             is_user_logged_in_to_xero = True
         else:
-            logger.warning("Final verification failed — user is NOT logged in to Xero Blue")
+            logger.warning(
+                "Final verification failed — user is NOT logged in to Xero Blue"
+            )
             is_user_logged_in_to_xero = False
 
         end_time = datetime.now()
         duration = (end_time - start_time).total_seconds()
         logger.info("=" * 80)
-        logger.info(f"COMPLETED: Xero Blue Login Automation - {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.info(
+            f"COMPLETED: Xero Blue Login Automation - {end_time.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
         logger.info(f"Duration: {duration:.2f} seconds")
-        logger.info(f"Final Login Status: {'SUCCESS' if is_user_logged_in_to_xero else 'FAILED'}")
+        logger.info(
+            f"Final Login Status: {'SUCCESS' if is_user_logged_in_to_xero else 'FAILED'}"
+        )
         logger.info("=" * 80)
 
         return is_user_logged_in_to_xero
@@ -120,7 +125,9 @@ def xero_blue_login(
         end_time = datetime.now()
         duration = (end_time - start_time).total_seconds()
         logger.error("=" * 80)
-        logger.error(f"FAILED: Xero Blue Login Automation - {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+        logger.error(
+            f"FAILED: Xero Blue Login Automation - {end_time.strftime('%Y-%m-%d %H:%M:%S')}"
+        )
         logger.error(f"Duration: {duration:.2f} seconds")
         logger.error(f"Error: {e}")
         logger.error("=" * 80)
@@ -148,13 +155,19 @@ def open_xero_blue_login_page(browser, xero_blue_url: str, payroll_url: str) -> 
     logger.info(f"Current browser URL: {current_url}")
 
     if xero_blue_url in current_url:
-        logger.info("Browser is already on the Xero Blue login page — no navigation required")
+        logger.info(
+            "Browser is already on the Xero Blue login page — no navigation required"
+        )
 
     elif payroll_url in current_url:
-        logger.info("Browser is already on the Xero Payroll page — no navigation required")
+        logger.info(
+            "Browser is already on the Xero Payroll page — no navigation required"
+        )
 
     else:
-        logger.info("Xero Blue or Payroll URL not detected — navigating to Xero Blue login page")
+        logger.info(
+            "Xero Blue or Payroll URL not detected — navigating to Xero Blue login page"
+        )
         driver.get(xero_blue_url)
         logger.info(f"Xero Blue login page loaded successfully: {xero_blue_url}")
 
@@ -284,7 +297,9 @@ def perform_xero_login(
                 logger.warning(f"MFA attempt {attempt} failed with error: {e}")
             time.sleep(1)
 
-        logger.error(f"MFA authentication failed after {max_retry} attempt(s) — login aborted")
+        logger.error(
+            f"MFA authentication failed after {max_retry} attempt(s) — login aborted"
+        )
         return False
 
     logger.info("No MFA challenge detected — login completed without MFA")
@@ -366,7 +381,9 @@ def submit_mfa_code(driver, xero_blue_authenticator_secret_key: str) -> bool:
         return True
 
     except Exception as e:
-        logger.error(f"MFA submission failed for secret key '{xero_blue_authenticator_secret_key}': {e}")
+        logger.error(
+            f"MFA submission failed for secret key '{xero_blue_authenticator_secret_key}': {e}"
+        )
         return False
 
 
@@ -399,7 +416,9 @@ def click_trust_device_checkbox(driver) -> None:
         driver.execute_script("arguments[0].click();", checkbox)
         logger.info("'Trust this device' checkbox clicked successfully")
     except Exception:
-        logger.info("'Trust this device' checkbox not found — possibly already selected or not displayed")
+        logger.info(
+            "'Trust this device' checkbox not found — possibly already selected or not displayed"
+        )
 
 
 def is_user_logged_in(browser) -> bool:
@@ -423,7 +442,9 @@ def is_user_logged_in(browser) -> bool:
         - Dashboard element is matched via normalised anchor text: normalize-space(.)='Dashboard'
         - Returns False only after both checks have timed out
     """
-    logger.info("Verifying login state — checking for Home or Dashboard navigation element")
+    logger.info(
+        "Verifying login state — checking for Home or Dashboard navigation element"
+    )
     driver = browser.driver
     dashboard_xpath = "//a[normalize-space(.)='Dashboard']"
     homepage_xpath = "//a[.//span[normalize-space()='Home']]"
@@ -432,7 +453,9 @@ def is_user_logged_in(browser) -> bool:
         WebDriverWait(driver, 5).until(
             EC.visibility_of_element_located((By.XPATH, homepage_xpath)),
         )
-        logger.info("Home navigation element found — user is confirmed logged in to Xero Blue")
+        logger.info(
+            "Home navigation element found — user is confirmed logged in to Xero Blue"
+        )
         return True
 
     except Exception:
@@ -440,9 +463,13 @@ def is_user_logged_in(browser) -> bool:
             WebDriverWait(driver, 5).until(
                 EC.visibility_of_element_located((By.XPATH, dashboard_xpath)),
             )
-            logger.info("Dashboard navigation element found — user is confirmed logged in to Xero Blue")
+            logger.info(
+                "Dashboard navigation element found — user is confirmed logged in to Xero Blue"
+            )
             return True
 
         except TimeoutException:
-            logger.info("Neither Home nor Dashboard element found — user is NOT logged in to Xero Blue")
+            logger.info(
+                "Neither Home nor Dashboard element found — user is NOT logged in to Xero Blue"
+            )
             return False

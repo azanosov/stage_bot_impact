@@ -66,6 +66,7 @@ _logger = logging.getLogger("IARPA." + __name__)
 # PUBLIC API
 # ====================================================================================
 
+
 def merge_pdfs(pdf_paths: List[str], output_path: str) -> bool:
     """
     Merge multiple PDF files into a single output PDF using PyMuPDF (fitz).
@@ -169,7 +170,9 @@ def merge_pdfs(pdf_paths: List[str], output_path: str) -> bool:
             files_added += 1
 
         if files_added == 0:
-            _logger.error("merge_pdfs: no valid PDF files were found — output not written")
+            _logger.error(
+                "merge_pdfs: no valid PDF files were found — output not written"
+            )
             merged_pdf.close()
             return False
 
@@ -181,10 +184,12 @@ def merge_pdfs(pdf_paths: List[str], output_path: str) -> bool:
 
         file_size_kb = os.path.getsize(output_path) / 1024
         _logger.info(f"  Merged PDF saved: {output_path}")
-        _logger.info(f"  Pages from {files_added} file(s) | Size: {file_size_kb:.2f} KB")
+        _logger.info(
+            f"  Pages from {files_added} file(s) | Size: {file_size_kb:.2f} KB"
+        )
 
         return True
-    
+
     except Exception as e:
         _logger.error(f"merge_pdfs: unexpected error — {e}", exc_info=True)
         return False

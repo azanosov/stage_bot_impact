@@ -49,7 +49,6 @@ from iaa_rpa_utils import ProcessLogger, setup_logger
 from iaa_rpa_utils.helpers import xpath_literal
 from iaa_rpa_utils.exceptions import WebAutomationError, DataValidationError
 
-
 # ====================================================================================
 # MODULE SETUP
 # ====================================================================================
@@ -62,13 +61,15 @@ __all__ = [
 # ====================================================================================
 # MODULE CONSTANTS
 # ====================================================================================
-_DETECTION_TIMEOUT = 2   # seconds; fast UI-version / negative-result probes
-_ELEMENT_TIMEOUT = 5     # seconds; normal element interactions and verification
+_DETECTION_TIMEOUT = 2  # seconds; fast UI-version / negative-result probes
+_ELEMENT_TIMEOUT = 5  # seconds; normal element interactions and verification
 
 # --- Shared / new-UI locators ------------------------------------------------------
 _HOME_LINK = "xpath://a[@role='link' and span[normalize-space(text())='Home']]"
 _NEW_UI_SEARCH = "xpath://input[@placeholder='Search organizations']"
-_NEW_UI_NO_RESULTS = "xpath://p[starts-with(normalize-space(.), 'No results found for')]"
+_NEW_UI_NO_RESULTS = (
+    "xpath://p[starts-with(normalize-space(.), 'No results found for')]"
+)
 # NOTE: fragile locator carried over from the original - "the first button on the
 # page" is not a robust anchor for the organisation selector. Replace with a real
 # data-automationid / aria-label when the page HTML is available.
@@ -76,20 +77,23 @@ _NEW_UI_USER_BUTTON = "xpath://button[@type='button']"
 
 # --- Legacy-UI locators (verbatim from the original) -------------------------------
 _DASHBOARD_LINK = "xpath://a[normalize-space(.)='Dashboard']"
-_OLD_UI_CHANGE_ORG = (
-    "xpath://button[@type='button']//span[normalize-space(text())='Change organisation']"
-)
+_OLD_UI_CHANGE_ORG = "xpath://button[@type='button']//span[normalize-space(text())='Change organisation']"
 _OLD_UI_ACCOUNT_SELECT = "xpath://div[@class='xnav-appbutton--body']"
 _OLD_UI_SEARCH_ORG = (
     "xpath://input[@role='searchbox' and @aria-label='Search organisations']"
 )
-_OLD_UI_SEARCH_BOX = "xpath://input[normalize-space(@placeholder)='Search organisations']"
-_OLD_UI_NO_RESULTS = "xpath://div[starts-with(normalize-space(.), 'No results found for')]"
+_OLD_UI_SEARCH_BOX = (
+    "xpath://input[normalize-space(@placeholder)='Search organisations']"
+)
+_OLD_UI_NO_RESULTS = (
+    "xpath://div[starts-with(normalize-space(.), 'No results found for')]"
+)
 
 
 # ====================================================================================
 # PUBLIC API
 # ====================================================================================
+
 
 def xero_blue_switch_client(browser, account_name: str) -> None:
     """
@@ -138,13 +142,16 @@ def xero_blue_switch_client(browser, account_name: str) -> None:
 # NEW-UI FLOW
 # ====================================================================================
 
+
 def _switch_new_ui(browser, account: str) -> None:
     """Switch organisation using the new (Home-based) UI, verifying the result."""
     # Navigate Home to reach the organisation selector.
     browser.click_element(_HOME_LINK, timeout=_DETECTION_TIMEOUT)
 
     if _client_selected_new_ui(browser, account, _ELEMENT_TIMEOUT):
-        logger.info(f"'{account}' is already the active organisation - no switch needed")
+        logger.info(
+            f"'{account}' is already the active organisation - no switch needed"
+        )
         return
 
     # Open the organisation selector (see _NEW_UI_USER_BUTTON note re: fragility).
@@ -165,20 +172,26 @@ def _switch_new_ui(browser, account: str) -> None:
 def _select_organisation_new_ui(browser, account: str) -> None:
     """Search for and click the target organisation in the new UI selector."""
     if not browser.does_page_contain_element(_NEW_UI_SEARCH, timeout=_ELEMENT_TIMEOUT):
-        raise WebAutomationError("Organisation search input did not appear in the new UI.")
+        raise WebAutomationError(
+            "Organisation search input did not appear in the new UI."
+        )
 
     browser.click_element(_NEW_UI_SEARCH, timeout=_ELEMENT_TIMEOUT)
-    browser.type_text(_NEW_UI_SEARCH, account, timeout=_ELEMENT_TIMEOUT)  # clears, then types
+    browser.type_text(
+        _NEW_UI_SEARCH, account, timeout=_ELEMENT_TIMEOUT
+    )  # clears, then types
     logger.info(f"Searched organisations for: '{account}'")
 
-    if browser.does_page_contain_element(_NEW_UI_NO_RESULTS, timeout=_DETECTION_TIMEOUT):
+    if browser.does_page_contain_element(
+        _NEW_UI_NO_RESULTS, timeout=_DETECTION_TIMEOUT
+    ):
         raise DataValidationError(f"Organisation does not exist in Xero: '{account}'")
 
-    account_link = (
-        f"xpath://a[@role='link' and .//span[normalize-space(.)={xpath_literal(account)}]]"
-    )
+    account_link = f"xpath://a[@role='link' and .//span[normalize-space(.)={xpath_literal(account)}]]"
     if not browser.does_page_contain_element(account_link, timeout=_ELEMENT_TIMEOUT):
-        raise WebAutomationError(f"Organisation '{account}' not present in search results.")
+        raise WebAutomationError(
+            f"Organisation '{account}' not present in search results."
+        )
 
     browser.click_element(account_link, timeout=_ELEMENT_TIMEOUT)
     logger.info(f"Selected organisation: '{account}'")
@@ -202,13 +215,16 @@ def _has_home_page(browser, timeout: int) -> bool:
 # LEGACY-UI FLOW
 # ====================================================================================
 
+
 def _switch_old_ui(browser, account: str) -> None:
     """Switch organisation using the legacy (Dashboard-based) UI, verifying result."""
     browser.click_element(_DASHBOARD_LINK, timeout=_DETECTION_TIMEOUT)
     logger.info("Navigated to Dashboard")
 
     if _client_selected_old_ui(browser, account, _ELEMENT_TIMEOUT):
-        logger.info(f"'{account}' is already the active organisation - no switch needed")
+        logger.info(
+            f"'{account}' is already the active organisation - no switch needed"
+        )
         return
 
     _select_organisation_old_ui(browser, account)
@@ -223,24 +239,36 @@ def _switch_old_ui(browser, account: str) -> None:
 
 def _select_organisation_old_ui(browser, account: str) -> None:
     """Open the legacy account selector, search, and click the target organisation."""
-    if not browser.does_page_contain_element(_OLD_UI_CHANGE_ORG, timeout=_ELEMENT_TIMEOUT):
-        raise WebAutomationError("'Change organisation' control not found in the legacy UI.")
+    if not browser.does_page_contain_element(
+        _OLD_UI_CHANGE_ORG, timeout=_ELEMENT_TIMEOUT
+    ):
+        raise WebAutomationError(
+            "'Change organisation' control not found in the legacy UI."
+        )
 
     # Open the account selector.
     browser.click_element(_OLD_UI_ACCOUNT_SELECT, timeout=_ELEMENT_TIMEOUT)
     logger.info("Opened account selector")
 
-    if not browser.does_page_contain_element(_OLD_UI_SEARCH_ORG, timeout=_ELEMENT_TIMEOUT):
+    if not browser.does_page_contain_element(
+        _OLD_UI_SEARCH_ORG, timeout=_ELEMENT_TIMEOUT
+    ):
         raise WebAutomationError("'Search organisations' control did not appear.")
     browser.click_element(_OLD_UI_SEARCH_ORG, timeout=_ELEMENT_TIMEOUT)
 
-    if not browser.does_page_contain_element(_OLD_UI_SEARCH_BOX, timeout=_ELEMENT_TIMEOUT):
+    if not browser.does_page_contain_element(
+        _OLD_UI_SEARCH_BOX, timeout=_ELEMENT_TIMEOUT
+    ):
         raise WebAutomationError("Organisation search box did not appear.")
     browser.click_element(_OLD_UI_SEARCH_BOX, timeout=_ELEMENT_TIMEOUT)
-    browser.type_text(_OLD_UI_SEARCH_BOX, account, timeout=_ELEMENT_TIMEOUT)  # clears, then types
+    browser.type_text(
+        _OLD_UI_SEARCH_BOX, account, timeout=_ELEMENT_TIMEOUT
+    )  # clears, then types
     logger.info(f"Searched organisations for: '{account}'")
 
-    if browser.does_page_contain_element(_OLD_UI_NO_RESULTS, timeout=_DETECTION_TIMEOUT):
+    if browser.does_page_contain_element(
+        _OLD_UI_NO_RESULTS, timeout=_DETECTION_TIMEOUT
+    ):
         raise DataValidationError(f"Organisation does not exist in Xero: '{account}'")
 
     account_link = (

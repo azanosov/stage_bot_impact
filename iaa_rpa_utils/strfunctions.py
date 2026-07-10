@@ -20,22 +20,25 @@ from weasyprint import HTML
 try:
     import fitz  # PyMuPDF - PDF manipulation library
 except ImportError:
-    raise ImportError("PyMuPDF (fitz) is required. Install it with: pip install PyMuPDF")
+    raise ImportError(
+        "PyMuPDF (fitz) is required. Install it with: pip install PyMuPDF"
+    )
 
 
 logger = setup_logger(__name__)
 
+
 def encrypt_string(plain_text, key):
     """
     Encrypts a given string using the provided key.
-    
+
     Args:
         plain_text: The string to encrypt
         key: Fernet encryption key (32 url-safe base64-encoded bytes)
-        
+
     Returns:
         str: Encrypted text as a string
-        
+
     Raises:
         DataProcessingError: If encryption fails
     """
@@ -48,17 +51,18 @@ def encrypt_string(plain_text, key):
         logger.error(f"Failed to encrypt string: {e}")
         raise DataProcessingError(f"Encryption failed: {e}") from e
 
+
 def decrypt_string(encrypted_text, key):
     """
     Decrypts a given string using the provided key.
-    
+
     Args:
         encrypted_text: The encrypted string to decrypt
         key: Fernet encryption key (32 url-safe base64-encoded bytes)
-        
+
     Returns:
         str: Decrypted plain text
-        
+
     Raises:
         DataProcessingError: If decryption fails
     """
@@ -71,16 +75,17 @@ def decrypt_string(encrypted_text, key):
         logger.error(f"Failed to decrypt string: {e}")
         raise DataProcessingError(f"Decryption failed: {e}") from e
 
+
 def str_to_bool(value):
     """
     Convert a string representation of a boolean to an actual boolean value.
-    
+
     Args:
         value: String, boolean, or other value to convert
-        
+
     Returns:
         bool: Converted boolean value
-        
+
     Raises:
         DataValidationError: If value cannot be safely interpreted
     """
@@ -88,14 +93,15 @@ def str_to_bool(value):
         if isinstance(value, bool):
             return value
         if isinstance(value, str):
-            return value.lower() in ('true', 't', 'yes', 'y', '1')
+            return value.lower() in ("true", "t", "yes", "y", "1")
         return bool(value)
     except Exception as e:
         logger.error(f"Failed to convert value to boolean: {e}")
-        raise DataValidationError(f"Cannot convert {value} to boolean: {e}") from e 
+        raise DataValidationError(f"Cannot convert {value} to boolean: {e}") from e
 
-def hash_from_string(plain_text, max_length = 0):
-    encoded_string = plain_text.encode('utf-8')
+
+def hash_from_string(plain_text, max_length=0):
+    encoded_string = plain_text.encode("utf-8")
 
     # Create a SHA-256 hash object
     md5_hash = md5()
@@ -156,12 +162,12 @@ def generate_html_table_rows(records):
             "Failed to generate HTML table rows: %s",
             error,
         )
-        raise DataProcessingError(
-            f"HTML table generation failed: {error}"
-        ) from error
+        raise DataProcessingError(f"HTML table generation failed: {error}") from error
 
 
-def mask_sensitive_id(value: str, visible_digits: int = 4, mask_position: str = "start") -> str:
+def mask_sensitive_id(
+    value: str, visible_digits: int = 4, mask_position: str = "start"
+) -> str:
     """
     Mask a TFN or ABN for safe logging.
 
@@ -188,7 +194,9 @@ def mask_sensitive_id(value: str, visible_digits: int = 4, mask_position: str = 
     digits = value.replace(" ", "")
 
     if len(digits) <= visible_digits:
-        logger.debug(f"mask_sensitive_id: value too short to mask ({len(digits)} digits)")
+        logger.debug(
+            f"mask_sensitive_id: value too short to mask ({len(digits)} digits)"
+        )
         return digits
 
     mask_count = len(digits) - visible_digits
@@ -198,7 +206,9 @@ def mask_sensitive_id(value: str, visible_digits: int = 4, mask_position: str = 
     else:
         masked = digits[:visible_digits] + " " + "*" * mask_count
 
-    logger.debug(f"mask_sensitive_id: masked {len(digits)}-digit value with mask_position='{mask_position}'")
+    logger.debug(
+        f"mask_sensitive_id: masked {len(digits)}-digit value with mask_position='{mask_position}'"
+    )
     return masked
 
 
@@ -250,7 +260,7 @@ def get_error_message(template: str, **kwargs) -> str:
              or ``''`` when the template is empty.
     """
     if not template:
-        return ''
+        return ""
     try:
         return template.format(**kwargs)
     except KeyError:
@@ -289,18 +299,20 @@ def clean_ocr_text(text):
     cleaned = " ".join(text.split())
 
     # Fix broken email addresses: remove spaces around @
-    cleaned = re.sub(r'\s*@\s*', '@', cleaned)
+    cleaned = re.sub(r"\s*@\s*", "@", cleaned)
 
     # Fix broken domain names in emails/URLs: remove spaces around dots
     # This pattern is more conservative - only fixes dots in email/URL contexts
     # Pattern: word@word.word or www.word.word
-    cleaned = re.sub(r'(@[a-zA-Z0-9-]+)\s*\.\s*', r'\1.', cleaned)  # After @
-    cleaned = re.sub(r'(www)\s*\.\s*', r'\1.', cleaned)  # After www
-    cleaned = re.sub(r'\.\s*([a-zA-Z0-9-]+@)', r'.\1', cleaned)  # Before @
-    cleaned = re.sub(r'\.\s*(com|org|net|edu|gov|au|uk|us)\b', r'.\1', cleaned, flags=re.IGNORECASE)  # Common TLDs
+    cleaned = re.sub(r"(@[a-zA-Z0-9-]+)\s*\.\s*", r"\1.", cleaned)  # After @
+    cleaned = re.sub(r"(www)\s*\.\s*", r"\1.", cleaned)  # After www
+    cleaned = re.sub(r"\.\s*([a-zA-Z0-9-]+@)", r".\1", cleaned)  # Before @
+    cleaned = re.sub(
+        r"\.\s*(com|org|net|edu|gov|au|uk|us)\b", r".\1", cleaned, flags=re.IGNORECASE
+    )  # Common TLDs
 
     # Fix common OCR error: 'com au' -> 'com.au'
-    cleaned = re.sub(r'com\s+au\b', 'com.au', cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"com\s+au\b", "com.au", cleaned, flags=re.IGNORECASE)
 
     logger.debug(f"Cleaned OCR text: '{text}' -> '{cleaned}'")
 
@@ -343,7 +355,9 @@ def extract_text_from_document(file_path: str, max_pages: int = 5) -> str:
         pdf_document.close()
         return pdf_text.strip()
     except Exception as exc:
-        logger.warning("Could not extract text from source PDF '%s': %s", file_path, exc)
+        logger.warning(
+            "Could not extract text from source PDF '%s': %s", file_path, exc
+        )
         return ""
 
 
@@ -387,9 +401,7 @@ def html_to_pdf(
             html_path = Path(html_source).resolve()
 
             if not html_path.exists():
-                raise FileNotFoundError(
-                    f"HTML file not found: {html_path}"
-                )
+                raise FileNotFoundError(f"HTML file not found: {html_path}")
 
             HTML(
                 filename=str(html_path),
@@ -404,9 +416,7 @@ def html_to_pdf(
         return output_path
 
     except Exception as exc:
-        raise RuntimeError(
-            f"Failed to generate PDF '{output_path}': {exc}"
-        ) from exc
+        raise RuntimeError(f"Failed to generate PDF '{output_path}': {exc}") from exc
 
 
 # ====================================================================================
@@ -438,6 +448,7 @@ def _convert_word_to_pdf(src_path: str, dst_path: str) -> None:
     logger.info("  Converting Word document to PDF via win32com...")
     try:
         import win32com.client as win32
+
         word = win32.Dispatch("Word.Application")
         word.Visible = False
         doc_com = word.Documents.Open(os.path.abspath(src_path))
@@ -458,6 +469,7 @@ def _convert_excel_to_pdf(src_path: str, dst_path: str) -> None:
     logger.info("  Converting Excel workbook to PDF via win32com...")
     try:
         import win32com.client as win32
+
         excel = win32.Dispatch("Excel.Application")
         excel.Visible = False
         wb = excel.Workbooks.Open(os.path.abspath(src_path))
@@ -477,7 +489,7 @@ def _convert_image_to_pdf(src_path: str, dst_path: str) -> None:
     """Convert a raster image to a single-page PDF via PyMuPDF (fitz)."""
     logger.info("  Converting image to PDF via PyMuPDF...")
     try:
-        img_doc = fitz.open(src_path)            # fitz opens most image formats
+        img_doc = fitz.open(src_path)  # fitz opens most image formats
         pdf_bytes = img_doc.convert_to_pdf()
         img_doc.close()
         with open(dst_path, "wb") as f:

@@ -49,7 +49,8 @@ How to call:
 Failure behaviour:
     Errors are logged (by ``ProcessLogger``) and RE-RAISED. No report data, a
     comparison kind disabled for the chosen range, or a file that fails to save,
-    all raise ``RuntimeError``.
+    all raise typed errors (``DataValidationError`` / ``DataExtractionError`` /
+    ``DownloadError``).
 """
 
 from __future__ import annotations
@@ -66,7 +67,6 @@ from iaa_rpa_utils.exceptions import DataExtractionError, DataValidationError
 from . import common
 from . import config
 
-
 logger = setup_logger(__name__)
 
 
@@ -80,7 +80,7 @@ __all__ = [
 # --------------------------------------------------------------------
 # Module constants (report-specific only; shared ones live in common)
 # --------------------------------------------------------------------
-_MAX_TITLE_LENGTH = 100   # Xero's report-title input maxlength
+_MAX_TITLE_LENGTH = 100  # Xero's report-title input maxlength
 
 # Accounting Method: request value (visible label) -> shared option id.
 AccountingMethod = Literal["Accrual", "Cash"]
@@ -140,7 +140,9 @@ class ComparisonPeriod:
             )
         # bool is an int subclass; exclude it so True/False can't pose as a count.
         if not isinstance(self.count, int) or isinstance(self.count, bool):
-            raise DataValidationError(f"comparison count must be an int, got {type(self.count).__name__}")
+            raise DataValidationError(
+                f"comparison count must be an int, got {type(self.count).__name__}"
+            )
         if self.count <= 0:
             raise DataValidationError(
                 f"comparison count must be a positive int, got {self.count} "
@@ -174,6 +176,10 @@ class ProfitAndLossRequest:
         alternative_report_title: Optional replacement title (<= 100 chars).
         export_format:            "excel" (default, .xlsx) or "pdf" (.pdf).
         window_title:             Title used to locate the Chrome Save As window.
+        capture_screenshots: Whether to capture before/after screenshots during
+            export (default True). When True, screenshot_path is required.
+        screenshot_path: Directory screenshots are written to. Required when
+            capture_screenshots is True; may be None when it is False.
     """
 
     download_directory: str
@@ -206,22 +212,33 @@ class ProfitAndLossRequest:
 
         common.validate_optional_date(self.start_date, "start_date")
         common.validate_optional_date(self.end_date, "end_date")
-        if (self.start_date is None or self.end_date is None) and self.financial_year is None:
-            raise DataValidationError("financial_year is required when start_date or end_date is omitted")
+        if (
+            self.start_date is None or self.end_date is None
+        ) and self.financial_year is None:
+            raise DataValidationError(
+                "financial_year is required when start_date or end_date is omitted"
+            )
         if self.financial_year is not None:
             common.validate_financial_year(self.financial_year)
         common.validate_date_order(self.start_date, self.end_date)
 
         # comparison must be a ComparisonPeriod when provided (it self-validates).
-        if self.comparison is not None and not isinstance(self.comparison, ComparisonPeriod):
+        if self.comparison is not None and not isinstance(
+            self.comparison, ComparisonPeriod
+        ):
             raise DataValidationError(
                 f"comparison must be a ComparisonPeriod or None, got {type(self.comparison).__name__}"
             )
 
         # alternative_report_title, when given, must be a non-empty <=100 char string.
         if self.alternative_report_title is not None:
-            if not isinstance(self.alternative_report_title, str) or not self.alternative_report_title.strip():
-                raise DataValidationError("alternative_report_title must be a non-empty string when provided")
+            if (
+                not isinstance(self.alternative_report_title, str)
+                or not self.alternative_report_title.strip()
+            ):
+                raise DataValidationError(
+                    "alternative_report_title must be a non-empty string when provided"
+                )
             if len(self.alternative_report_title) > _MAX_TITLE_LENGTH:
                 raise DataValidationError(
                     f"alternative_report_title must be <= {_MAX_TITLE_LENGTH} characters, "
@@ -236,9 +253,13 @@ class ProfitAndLossRequest:
                 )
             for key, value in self.show_options.items():
                 if not isinstance(key, str) or not key.strip():
-                    raise DataValidationError(f"show_options keys must be non-empty strings, got {key!r}")
+                    raise DataValidationError(
+                        f"show_options keys must be non-empty strings, got {key!r}"
+                    )
                 if not isinstance(value, bool):
-                    raise DataValidationError(f"show_options['{key}'] must be a bool, got {type(value).__name__}")
+                    raise DataValidationError(
+                        f"show_options['{key}'] must be a bool, got {type(value).__name__}"
+                    )
                 if key.strip().lower() not in _KNOWN_SHOW_OPTIONS:
                     logger.warning(
                         f"show_options contains an unrecognised label {key!r}; it will be "
@@ -276,16 +297,34 @@ class ProfitAndLossRequest:
 
     @property
     def dest_path(self) -> str:
-        return common.build_dest_path(self.download_directory, self.report_file_name, self.saved_extension)
+        return common.build_dest_path(
+            self.download_directory, self.report_file_name, self.saved_extension
+        )
 
     def summary_lines(self) -> list[str]:
-        start_display = self.resolved_start_date if self.start_date else f"{self.resolved_start_date} (default)"
-        end_display = self.resolved_end_date if self.end_date else f"{self.resolved_end_date} (default)"
-        comparison_display = "None" if self.comparison is None else f"{self.comparison.kind} x {self.comparison.count}"
+        start_display = (
+            self.resolved_start_date
+            if self.start_date
+            else f"{self.resolved_start_date} (default)"
+        )
+        end_display = (
+            self.resolved_end_date
+            if self.end_date
+            else f"{self.resolved_end_date} (default)"
+        )
+        comparison_display = (
+            "None"
+            if self.comparison is None
+            else f"{self.comparison.kind} x {self.comparison.count}"
+        )
         rows = {
             "Start Date": start_display,
             "End Date": end_display,
-            "Financial Year": self.financial_year if self.financial_year is not None else "(from dates)",
+            "Financial Year": (
+                self.financial_year
+                if self.financial_year is not None
+                else "(from dates)"
+            ),
             "Accounting Method": self.accounting_method,
             "Show Options": self.show_options if self.show_options else "(unchanged)",
             "Comparison": comparison_display,
@@ -296,13 +335,15 @@ class ProfitAndLossRequest:
             "Report File Name": self.report_file_name,
             "Window Title": self.window_title,
             "Capture Screenshots": self.capture_screenshots,
-            "Screenshot Path": self.screenshot_path if self.capture_screenshots else "(disabled)",
+            "Screenshot Path": (
+                self.screenshot_path if self.capture_screenshots else "(disabled)"
+            ),
         }
         width = max(map(len, rows))
         return [f"{label:<{width}} : {value}" for label, value in rows.items()]
 
 
-def download_profit_and_loss_report(browser, request: ProfitAndLossRequest) -> None:
+def download_profit_and_loss_report(browser, request: ProfitAndLossRequest) -> str:
     """
     Download a Profit and Loss report from Xero Blue.
 
@@ -317,15 +358,21 @@ def download_profit_and_loss_report(browser, request: ProfitAndLossRequest) -> N
     kinds when the range is too long; the title is set before Update because it
     must be in place when the report is generated and exported.
 
+    Returns:
+        str: The full path of the saved report (directory + filename + extension).
+
     Raises:
         Re-raises any exception after ``ProcessLogger`` has logged it. No data, a
-        disabled comparison kind, or a file that fails to save, raise ``RuntimeError``.
+        disabled comparison kind raises ``DataExtractionError``; a file that fails to
+        save raises ``DownloadError``.
     """
     with ProcessLogger("Xero Blue Download Profit and Loss Report", logger):
         for line in request.summary_lines():
             logger.info(line)
 
-        logger.info("STEP 1: Configuring report settings (Accounting Method and show options)...")
+        logger.info(
+            "STEP 1: Configuring report settings (Accounting Method and show options)..."
+        )
         configure_report_settings(browser, request)
         logger.info("STEP 1 COMPLETED: report settings configured")
 
@@ -342,8 +389,9 @@ def download_profit_and_loss_report(browser, request: ProfitAndLossRequest) -> N
         logger.info("STEP 4 COMPLETED: report title configuration applied")
 
         logger.info("STEP 5: Generating report and exporting...")
-        generate_and_export_report(browser, request)
+        _dest = generate_and_export_report(browser, request)
         logger.info("STEP 5 COMPLETED: report exported and file saved")
+        return _dest
 
 
 def configure_report_settings(browser, request: ProfitAndLossRequest) -> None:
@@ -366,7 +414,7 @@ def configure_report_settings(browser, request: ProfitAndLossRequest) -> None:
     else:
         logger.info("No show options specified - leaving all as displayed")
 
-    browser.click_element(config.SH_MORE_BUTTON, timeout=timeout)   # close the menu
+    browser.click_element(config.SH_MORE_BUTTON, timeout=timeout)  # close the menu
     logger.info("'More' settings menu closed")
 
 
@@ -383,9 +431,13 @@ def _apply_show_option(browser, label: str, desired: bool, timeout: int) -> None
         logger.warning(f"Show option '{label}' not found on the page - skipping")
         return
 
-    currently_checked = browser.does_page_contain_element(checked_locator, timeout=timeout)
+    currently_checked = browser.does_page_contain_element(
+        checked_locator, timeout=timeout
+    )
     if currently_checked == desired:
-        logger.info(f"Show option '{label}' already {'checked' if desired else 'unchecked'} - skipping")
+        logger.info(
+            f"Show option '{label}' already {'checked' if desired else 'unchecked'} - skipping"
+        )
         return
 
     browser.click_element(click_locator, timeout=timeout)
@@ -394,7 +446,9 @@ def _apply_show_option(browser, label: str, desired: bool, timeout: int) -> None
 
 def configure_report_dates(browser, request: ProfitAndLossRequest) -> None:
     """Enter the report start and end dates."""
-    common.clear_and_type(browser, config.SH_DATE_FROM_INPUT, request.resolved_start_date)
+    common.clear_and_type(
+        browser, config.SH_DATE_FROM_INPUT, request.resolved_start_date
+    )
     common.clear_and_type(browser, config.SH_DATE_TO_INPUT, request.resolved_end_date)
 
 
@@ -404,7 +458,9 @@ def configure_comparison(browser, request: ProfitAndLossRequest) -> None:
     selects the kind - raising if that kind is disabled for the date range."""
     comparison = request.comparison
     if comparison is None:
-        logger.info("No comparison period requested - skipping comparison configuration")
+        logger.info(
+            "No comparison period requested - skipping comparison configuration"
+        )
         return
 
     timeout = common.DEFAULT_ELEMENT_TIMEOUT
@@ -416,8 +472,8 @@ def configure_comparison(browser, request: ProfitAndLossRequest) -> None:
 
     # Enter the count in the dialog (clear, type, confirm with Select - no TAB).
     browser.click_element(config.PLR_COMPARISON_MODAL_INPUT, timeout=timeout)
-    browser.send_keys_to_active_element("\ue009" + "a")   # CTRL + A
-    browser.send_keys_to_active_element("\ue003")         # DELETE
+    browser.send_keys_to_active_element("\ue009" + "a")  # CTRL + A
+    browser.send_keys_to_active_element("\ue003")  # DELETE
     browser.send_keys_to_active_element(str(comparison.count))
     browser.click_element(config.PLR_COMPARISON_MODAL_SELECT, timeout=timeout)
     logger.info(f"Comparison count entered: {comparison.count}")
@@ -445,11 +501,14 @@ def set_report_title(browser, request: ProfitAndLossRequest) -> None:
     logger.info(f"Report title set successfully: '{title}'")
 
 
-def generate_and_export_report(browser, request: ProfitAndLossRequest) -> None:
+def generate_and_export_report(browser, request: ProfitAndLossRequest) -> str:
     """Update the report, screenshot it, confirm it has data, export to the
     chosen format, and verify the saved file."""
     common.capture_report_screenshot(
-        browser, request.screenshot_path, "profit_and_loss", "before_update",
+        browser,
+        request.screenshot_path,
+        "profit_and_loss",
+        "before_update",
         enabled=request.capture_screenshots,
     )
 
@@ -457,24 +516,39 @@ def generate_and_export_report(browser, request: ProfitAndLossRequest) -> None:
     browser.click_element(config.SH_UPDATE_BUTTON, timeout=common.EXPORT_TIMEOUT)
 
     # Wait for the report title input to confirm the report has rendered.
-    if browser.does_page_contain_element(config.SH_REPORT_TITLE_INPUT, timeout=common.EXPORT_TIMEOUT):
+    if browser.does_page_contain_element(
+        config.SH_REPORT_TITLE_INPUT, timeout=common.EXPORT_TIMEOUT
+    ):
         logger.info("Report rendered successfully - report title is visible")
     else:
-        logger.warning("Report title not visible within timeout - proceeding to data check")
+        logger.warning(
+            "Report title not visible within timeout - proceeding to data check"
+        )
 
-    if not browser.does_page_contain_element(config.SH_EXPORT_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
-        logger.warning("Export button not found - no Profit and Loss data available for this client")
+    if not browser.does_page_contain_element(
+        config.SH_EXPORT_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    ):
+        logger.warning(
+            "Export button not found - no Profit and Loss data available for this client"
+        )
         raise DataExtractionError("No Profit and Loss data available for this client.")
     logger.info("'Export' button located - report contains data")
 
-    logger.info(f"Exporting as '{request.export_format}' (saved as '{request.saved_extension}')...")
+    logger.info(
+        f"Exporting as '{request.export_format}' (saved as '{request.saved_extension}')..."
+    )
     common.capture_report_screenshot(
-        browser, request.screenshot_path, "profit_and_loss", "after_update",
+        browser,
+        request.screenshot_path,
+        "profit_and_loss",
+        "after_update",
         enabled=request.capture_screenshots,
     )
 
     browser.click_element(config.SH_EXPORT_BUTTON, timeout=common.EXPORT_TIMEOUT)
-    common.click_pickitem_by_id(browser, request.export_menu_id, timeout=common.EXPORT_TIMEOUT)
+    common.click_pickitem_by_id(
+        browser, request.export_menu_id, timeout=common.EXPORT_TIMEOUT
+    )
     logger.info("Export triggered. Waiting for the Windows Save As dialog...")
 
     dest_path = request.dest_path
@@ -484,5 +558,6 @@ def generate_and_export_report(browser, request: ProfitAndLossRequest) -> None:
         dest_path=dest_path,
     )
 
-    common.verify_saved_file(dest_path) 
+    common.verify_saved_file(dest_path)
     logger.info(f"File successfully saved: '{dest_path}'")
+    return dest_path

@@ -59,29 +59,38 @@ def xero_blue_download_aged_payables_summary_reports(
     start_time = datetime.now()
 
     logger.info("STARTING: xero_blue_download_aged_payables_summary_reports")
-    logger.info(json.dumps({
-        "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
-        "client_name": client_name,
-        "xero_end_date": xero_end_date,
-        "xero_financial_year": xero_financial_year,
-        "is_add_gst_column": is_add_gst_column,
-        "xero_aging_by": xero_aging_by,
-        "ageing_period": ageing_period,
-        "window_title": window_title,
-        "download_directory": download_directory,
-        "report_file_name": report_file_name,
-        "extension": extension,
-    }, indent=2))
+    logger.info(
+        json.dumps(
+            {
+                "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+                "client_name": client_name,
+                "xero_end_date": xero_end_date,
+                "xero_financial_year": xero_financial_year,
+                "is_add_gst_column": is_add_gst_column,
+                "xero_aging_by": xero_aging_by,
+                "ageing_period": ageing_period,
+                "window_title": window_title,
+                "download_directory": download_directory,
+                "report_file_name": report_file_name,
+                "extension": extension,
+            },
+            indent=2,
+        )
+    )
 
     try:
         driver = browser.driver
 
         if not xero_end_date:
             xero_end_date = f"30 Jun {xero_financial_year}"
-            logger.info(f"No end date provided. Using financial year end: {xero_end_date}")
-        
+            logger.info(
+                f"No end date provided. Using financial year end: {xero_end_date}"
+            )
+
         # Select End Date
-        helper.type_into_date_element(driver, "report-settings-custom-date-input-to", xero_end_date, by=By.ID)
+        helper.type_into_date_element(
+            driver, "report-settings-custom-date-input-to", xero_end_date, by=By.ID
+        )
 
         select_aging_by(xero_aging_by, driver)
         set_ageing_period(driver, ageing_period)
@@ -129,8 +138,11 @@ def xero_blue_download_aged_payables_summary_reports(
         logger.error(f"Error             : {e}")
         logger.error(f"Status            : FAILED")
         logger.error("=" * 80)
-        logger.error("xero_blue_download_aged_payables_summary_reports failed", exc_info=True)
+        logger.error(
+            "xero_blue_download_aged_payables_summary_reports failed", exc_info=True
+        )
         raise
+
 
 def select_aging_by(xero_aging_by, driver):
     logger.info(f"Configuring aging method: {xero_aging_by}")
@@ -143,7 +155,10 @@ def select_aging_by(xero_aging_by, driver):
         helper.click_element(driver, ageing_option_xpath)
         logger.info(f"Successfully selected aging method: {xero_aging_by}")
     else:
-        logger.warning(f"Aging method '{xero_aging_by}' not found in dropdown. Proceeding with default.")
+        logger.warning(
+            f"Aging method '{xero_aging_by}' not found in dropdown. Proceeding with default."
+        )
+
 
 def set_ageing_period(driver: Any, ageing_period: str | None) -> None:
     """
@@ -161,7 +176,9 @@ def set_ageing_period(driver: Any, ageing_period: str | None) -> None:
         logger.info("No ageing period specified — skipping ageing period configuration")
         return
 
-    match = re.match(r'(\d+)\s+periods?\s+of\s+(\d+)\s+(\w+)', ageing_period, re.IGNORECASE)
+    match = re.match(
+        r"(\d+)\s+periods?\s+of\s+(\d+)\s+(\w+)", ageing_period, re.IGNORECASE
+    )
     if not match:
         logger.warning(f"Could not parse ageing period '{ageing_period}' — skipping")
         return
@@ -170,11 +187,17 @@ def set_ageing_period(driver: Any, ageing_period: str | None) -> None:
     logger.info(f"Setting ageing period: {count} periods of {size} {kind}")
 
     trigger_xpath = "//button[@id='report-settings-ageing-periods-modal-trigger']"
-    count_input_xpath = "(//input[contains(@class,'report-settings-ageing-periods-modal-input')])[1]"
-    size_input_xpath = "(//input[contains(@class,'report-settings-ageing-periods-modal-input')])[2]"
+    count_input_xpath = (
+        "(//input[contains(@class,'report-settings-ageing-periods-modal-input')])[1]"
+    )
+    size_input_xpath = (
+        "(//input[contains(@class,'report-settings-ageing-periods-modal-input')])[2]"
+    )
     kind_dropdown_xpath = "//section[@role='dialog']//button[@aria-haspopup='listbox']"
     kind_option_xpath = f"//button[contains(@class,'xui-pickitem--body')][.//span[normalize-space()='{kind}']]"
-    apply_button_xpath = "//section[@role='dialog']//button[normalize-space(text())='Apply']"
+    apply_button_xpath = (
+        "//section[@role='dialog']//button[normalize-space(text())='Apply']"
+    )
 
     helper.click_element(driver, trigger_xpath)
     helper.type_into_element(driver, count_input_xpath, count)
@@ -207,5 +230,3 @@ def set_gst_column(
         logger.info("GST column added successfully.")
     else:
         logger.info("GST column not requested. Skipping.")
-
-   

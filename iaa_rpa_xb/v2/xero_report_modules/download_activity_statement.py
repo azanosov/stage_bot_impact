@@ -65,7 +65,6 @@ from typing import Literal, get_args
 from iaa_rpa_utils import ProcessLogger, setup_logger
 from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog
 
-
 # Set up logger
 logger = setup_logger(__name__)
 
@@ -82,9 +81,9 @@ __all__ = [
 # --------------------------------------------------------------------
 # Module constants
 # --------------------------------------------------------------------
-DEFAULT_ELEMENT_TIMEOUT = 5   # seconds; general element waits (overridable per run)
-EXPORT_TIMEOUT = 10           # seconds; export buttons - Xero builds the file server-side
-_MIN_STATEMENT_YEAR = 2000    # earliest period year we accept
+DEFAULT_ELEMENT_TIMEOUT = 5  # seconds; general element waits (overridable per run)
+EXPORT_TIMEOUT = 10  # seconds; export buttons - Xero builds the file server-side
+_MIN_STATEMENT_YEAR = 2000  # earliest period year we accept
 
 
 # The four BAS quarter-end months. Constrained so an invalid month is a
@@ -286,7 +285,9 @@ def navigate_to_report_page(browser, request: ActivityStatementRequest) -> None:
         "xpath://button[normalize-space(text())='Lodge reports to ATO outside of Xero']"
     )
 
-    logger.info("Checking if 'Lodge reports to ATO outside of Xero' dialog is present...")
+    logger.info(
+        "Checking if 'Lodge reports to ATO outside of Xero' dialog is present..."
+    )
     if lodge_reports_dialog_present(browser, lodge_report_locator, timeout):
 
         logger.info("ATO lodge dialog detected - proceeding through dialog steps")
@@ -425,7 +426,9 @@ def run_report_export(browser, request: ActivityStatementRequest) -> None:
         "xpath://button[@type='button' and normalize-space(text())='Export']"
     )
 
-    if not browser.does_page_contain_element(export_btn_locator, timeout=request.element_timeout):
+    if not browser.does_page_contain_element(
+        export_btn_locator, timeout=request.element_timeout
+    ):
         raise RuntimeError("'Export' button not found - cannot export report")
 
     browser.click_element(export_btn_locator, timeout=EXPORT_TIMEOUT)

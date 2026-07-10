@@ -31,18 +31,23 @@ def xero_blue_download_aged_receivables_summary_report(
     start_time = datetime.now()
 
     logger.info("STARTING: xero_blue_download_aged_receivables_summary_report")
-    logger.info(json.dumps({
-        "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
-        "client_name": client_name,
-        "xero_end_date": xero_end_date,
-        "xero_financial_year": xero_financial_year,
-        "is_add_gst_column": is_add_gst_column,
-        "xero_aging_by": xero_aging_by,
-        "window_title": window_title,
-        "download_directory": download_directory,
-        "report_file_name": report_file_name,
-        "extension": extension,
-    }, indent=2))
+    logger.info(
+        json.dumps(
+            {
+                "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+                "client_name": client_name,
+                "xero_end_date": xero_end_date,
+                "xero_financial_year": xero_financial_year,
+                "is_add_gst_column": is_add_gst_column,
+                "xero_aging_by": xero_aging_by,
+                "window_title": window_title,
+                "download_directory": download_directory,
+                "report_file_name": report_file_name,
+                "extension": extension,
+            },
+            indent=2,
+        )
+    )
 
     try:
         driver = browser.driver
@@ -50,7 +55,9 @@ def xero_blue_download_aged_receivables_summary_report(
         str_end_date = xero_end_date or f"30 Jun {xero_financial_year}"
         logger.info(f"End date: {str_end_date}")
 
-        helper.type_into_date_element(driver, "report-settings-custom-date-input-to", str_end_date, by=By.ID)
+        helper.type_into_date_element(
+            driver, "report-settings-custom-date-input-to", str_end_date, by=By.ID
+        )
         configure_aging(driver, xero_aging_by)
         set_ageing_period(driver, ageing_period)
         set_gst_column(driver, is_add_gst_column)
@@ -87,7 +94,9 @@ def xero_blue_download_aged_receivables_summary_report(
         logger.error(f"Error             : {e}")
         logger.error(f"Status            : FAILED")
         logger.error("=" * 80)
-        logger.error("xero_blue_download_aged_receivables_summary_report failed", exc_info=True)
+        logger.error(
+            "xero_blue_download_aged_receivables_summary_report failed", exc_info=True
+        )
         raise
 
 
@@ -110,7 +119,9 @@ def set_ageing_period(driver: Any, ageing_period: str | None) -> None:
         logger.info("No ageing period specified — skipping")
         return
 
-    match = re.match(r'(\d+)\s+periods?\s+of\s+(\d+)\s+(\w+)', ageing_period, re.IGNORECASE)
+    match = re.match(
+        r"(\d+)\s+periods?\s+of\s+(\d+)\s+(\w+)", ageing_period, re.IGNORECASE
+    )
     if not match:
         logger.warning(f"Could not parse ageing period '{ageing_period}' — skipping")
         return
@@ -119,11 +130,17 @@ def set_ageing_period(driver: Any, ageing_period: str | None) -> None:
     logger.info(f"Setting ageing period: {count} periods of {size} {kind}")
 
     trigger_xpath = "//button[@id='report-settings-ageing-periods-modal-trigger']"
-    count_input_xpath = "(//input[contains(@class,'report-settings-ageing-periods-modal-input')])[1]"
-    size_input_xpath = "(//input[contains(@class,'report-settings-ageing-periods-modal-input')])[2]"
+    count_input_xpath = (
+        "(//input[contains(@class,'report-settings-ageing-periods-modal-input')])[1]"
+    )
+    size_input_xpath = (
+        "(//input[contains(@class,'report-settings-ageing-periods-modal-input')])[2]"
+    )
     kind_dropdown_xpath = "//section[@role='dialog']//button[@aria-haspopup='listbox']"
     kind_option_xpath = f"//button[contains(@class,'xui-pickitem--body')][.//span[normalize-space()='{kind}']]"
-    apply_button_xpath = "//section[@role='dialog']//button[normalize-space(text())='Apply']"
+    apply_button_xpath = (
+        "//section[@role='dialog']//button[normalize-space(text())='Apply']"
+    )
 
     helper.click_element(driver, trigger_xpath)
     helper.type_into_element(driver, count_input_xpath, count)

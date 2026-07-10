@@ -19,7 +19,7 @@ the sweep), this module raises the library's TYPED exceptions from
   - DataValidationError - a request input failed validation
   - DataExtractionError - the client has no receivables data
 The ageing-method / ageing-kind dropdowns are driven by common.select_listbox_option,
-which raises RuntimeError if a (valid) option is absent on the page - kept
+which raises ``DataExtractionError`` if a (valid) option is absent on the page - kept
 identical to the other aged reports, per design.
 
 Period:
@@ -77,7 +77,6 @@ from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog
 from . import common
 from . import config
 
-
 logger = setup_logger(__name__)
 
 
@@ -105,7 +104,9 @@ _EXPORT_FORMATS: dict[str, tuple[str, str]] = {
 }
 
 # "N periods of M {kind}", e.g. "4 periods of 1 Month".
-_AGEING_PERIOD_RE = re.compile(r"^\s*(\d+)\s+periods?\s+of\s+(\d+)\s+(\w+)\s*$", re.IGNORECASE)
+_AGEING_PERIOD_RE = re.compile(
+    r"^\s*(\d+)\s+periods?\s+of\s+(\d+)\s+(\w+)\s*$", re.IGNORECASE
+)
 
 
 def _parse_ageing_period(text: str | None) -> tuple[str, str, str] | None:
@@ -137,6 +138,10 @@ class AgedReceivablesSummaryRequest:
         add_gst_column:     When True, add the Outstanding GST column. Default False.
         export_format:      "excel" (default, .xlsx) or "pdf" (.pdf).
         window_title:       Title used to locate the Chrome Save As window.
+        capture_screenshots: Whether to capture before/after screenshots during
+            export (default True). When True, screenshot_path is required.
+        screenshot_path: Directory screenshots are written to. Required when
+            capture_screenshots is True; may be None when it is False.
 
     Raises (on construction):
         DataValidationError: if any input fails validation.
@@ -144,7 +149,7 @@ class AgedReceivablesSummaryRequest:
 
     download_directory: str
     report_file_name: str
-    aging_by: AgingMethod
+    aging_by: AgingMethod = "Due Date"
     end_date: date | None = None
     financial_year: int | None = None
     ageing_period: str | None = None
@@ -155,13 +160,25 @@ class AgedReceivablesSummaryRequest:
     screenshot_path: str | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.download_directory, str) or not self.download_directory.strip():
-            raise DataValidationError("download_directory is required and must be a non-empty string")
-        if not isinstance(self.report_file_name, str) or not self.report_file_name.strip():
-            raise DataValidationError("report_file_name is required and must be a non-empty string")
+        if (
+            not isinstance(self.download_directory, str)
+            or not self.download_directory.strip()
+        ):
+            raise DataValidationError(
+                "download_directory is required and must be a non-empty string"
+            )
+        if (
+            not isinstance(self.report_file_name, str)
+            or not self.report_file_name.strip()
+        ):
+            raise DataValidationError(
+                "report_file_name is required and must be a non-empty string"
+            )
 
         if self.aging_by not in get_args(AgingMethod):
-            raise DataValidationError(f"aging_by must be one of {get_args(AgingMethod)}, got {self.aging_by!r}")
+            raise DataValidationError(
+                f"aging_by must be one of {get_args(AgingMethod)}, got {self.aging_by!r}"
+            )
 
         if self.export_format not in get_args(ExportFormat):
             raise DataValidationError(
@@ -169,16 +186,24 @@ class AgedReceivablesSummaryRequest:
             )
 
         if not isinstance(self.add_gst_column, bool):
-            raise DataValidationError(f"add_gst_column must be a bool, got {type(self.add_gst_column).__name__}")
+            raise DataValidationError(
+                f"add_gst_column must be a bool, got {type(self.add_gst_column).__name__}"
+            )
 
         if self.end_date is not None and not isinstance(self.end_date, date):
-            raise DataValidationError(f"end_date must be a datetime.date, got {type(self.end_date).__name__}")
+            raise DataValidationError(
+                f"end_date must be a datetime.date, got {type(self.end_date).__name__}"
+            )
 
         if self.end_date is None and self.financial_year is None:
-            raise DataValidationError("financial_year is required when end_date is omitted")
+            raise DataValidationError(
+                "financial_year is required when end_date is omitted"
+            )
 
         if self.financial_year is not None:
-            if not isinstance(self.financial_year, int) or isinstance(self.financial_year, bool):
+            if not isinstance(self.financial_year, int) or isinstance(
+                self.financial_year, bool
+            ):
                 raise DataValidationError(
                     f"financial_year must be an int, got {type(self.financial_year).__name__}"
                 )
@@ -210,7 +235,9 @@ class AgedReceivablesSummaryRequest:
 
     @property
     def aging_option_locator(self) -> str:
-        return config.AGED_AGEING_OPTION_TPL.format(opt=_AGING_OPTION_KEYS[self.aging_by])
+        return config.AGED_AGEING_OPTION_TPL.format(
+            opt=_AGING_OPTION_KEYS[self.aging_by]
+        )
 
     @property
     def parsed_ageing_period(self) -> tuple[str, str, str] | None:
@@ -227,12 +254,22 @@ class AgedReceivablesSummaryRequest:
 
     @property
     def dest_path(self) -> str:
-        return common.build_dest_path(self.download_directory, self.report_file_name, self.saved_extension)
+        return common.build_dest_path(
+            self.download_directory, self.report_file_name, self.saved_extension
+        )
 
     def summary_lines(self) -> list[str]:
         rows = {
-            "End Date": self.resolved_end_date if self.end_date else f"{self.resolved_end_date} (default)",
-            "Financial Year": self.financial_year if self.financial_year is not None else "(from end date)",
+            "End Date": (
+                self.resolved_end_date
+                if self.end_date
+                else f"{self.resolved_end_date} (default)"
+            ),
+            "Financial Year": (
+                self.financial_year
+                if self.financial_year is not None
+                else "(from end date)"
+            ),
             "Aging By": self.aging_by,
             "Ageing Period": self.ageing_period if self.ageing_period else "(default)",
             "Add GST Column": self.add_gst_column,
@@ -242,13 +279,17 @@ class AgedReceivablesSummaryRequest:
             "Report File Name": self.report_file_name,
             "Window Title": self.window_title,
             "Capture Screenshots": self.capture_screenshots,
-            "Screenshot Path": self.screenshot_path if self.capture_screenshots else "(disabled)",
+            "Screenshot Path": (
+                self.screenshot_path if self.capture_screenshots else "(disabled)"
+            ),
         }
         width = max(map(len, rows))
         return [f"{label:<{width}} : {value}" for label, value in rows.items()]
 
 
-def download_aged_receivables_summary_report(browser, request: AgedReceivablesSummaryRequest) -> None:
+def download_aged_receivables_summary_report(
+    browser, request: AgedReceivablesSummaryRequest
+) -> str:
     """
     Download an Aged Receivables Summary report from Xero Blue.
 
@@ -258,6 +299,9 @@ def download_aged_receivables_summary_report(browser, request: AgedReceivablesSu
         STEP 3 - configure the ageing periods (only if requested)
         STEP 4 - add the Outstanding GST column (only if requested)
         STEP 5 - update, confirm data, export, and verify the saved file
+
+    Returns:
+        str: The full path of the saved report (directory + filename + extension).
 
     Raises:
         Re-raises any exception after ``ProcessLogger`` has logged it.
@@ -284,8 +328,9 @@ def download_aged_receivables_summary_report(browser, request: AgedReceivablesSu
         logger.info("STEP 4 COMPLETED: GST column handled")
 
         logger.info("STEP 5: Updating report and exporting...")
-        update_and_export_report(browser, request)
+        _dest = update_and_export_report(browser, request)
         logger.info("STEP 5 COMPLETED: report exported and file saved")
+        return _dest
 
 
 def configure_report_date(browser, request: AgedReceivablesSummaryRequest) -> None:
@@ -347,15 +392,18 @@ def add_gst_column_to_report(browser, request: AgedReceivablesSummaryRequest) ->
     logger.info("Adding Outstanding GST column...")
     browser.click_element(config.SH_COLUMNS_BUTTON, timeout=timeout)
     common.ensure_pickitem_selected(browser, config.AGED_GST_COLUMN_ID, timeout)
-    browser.click_element(config.SH_COLUMNS_BUTTON, timeout=timeout)   # close the menu
+    browser.click_element(config.SH_COLUMNS_BUTTON, timeout=timeout)  # close the menu
     logger.info("Outstanding GST column added")
 
 
-def update_and_export_report(browser, request: AgedReceivablesSummaryRequest) -> None:
+def update_and_export_report(browser, request: AgedReceivablesSummaryRequest) -> str:
     """Update the report, confirm data exists, export to the chosen format, and
     verify the saved file."""
     common.capture_report_screenshot(
-        browser, request.screenshot_path, "aged_receivables_summary", "before_update",
+        browser,
+        request.screenshot_path,
+        "aged_receivables_summary",
+        "before_update",
         enabled=request.capture_screenshots,
     )
 
@@ -363,21 +411,32 @@ def update_and_export_report(browser, request: AgedReceivablesSummaryRequest) ->
     browser.click_element(config.SH_UPDATE_BUTTON, timeout=common.EXPORT_TIMEOUT)
 
     # The Export button only renders when the report has data.
-    if not browser.does_page_contain_element(config.SH_EXPORT_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
+    if not browser.does_page_contain_element(
+        config.SH_EXPORT_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    ):
         logger.warning("Export button not found - no receivables data for this client")
-        raise DataExtractionError("No Aged Receivables Summary data available for this client.")
+        raise DataExtractionError(
+            "No Aged Receivables Summary data available for this client."
+        )
     logger.info("'Export' button present - data confirmed")
 
-    logger.info(f"Exporting as '{request.export_format}' (saved as '{request.saved_extension}')...")
+    logger.info(
+        f"Exporting as '{request.export_format}' (saved as '{request.saved_extension}')..."
+    )
     common.capture_report_screenshot(
-        browser, request.screenshot_path, "aged_receivables_summary", "after_update",
+        browser,
+        request.screenshot_path,
+        "aged_receivables_summary",
+        "after_update",
         enabled=request.capture_screenshots,
     )
 
     browser.click_element(config.SH_EXPORT_BUTTON, timeout=common.EXPORT_TIMEOUT)
-    common.click_pickitem_by_id(browser, request.export_menu_id, timeout=common.EXPORT_TIMEOUT)
+    common.click_pickitem_by_id(
+        browser, request.export_menu_id, timeout=common.EXPORT_TIMEOUT
+    )
 
-    time.sleep(2)   # brief settle so the save dialog has rendered
+    time.sleep(2)  # brief settle so the save dialog has rendered
 
     dest_path = request.dest_path
     logger.info(f"Handling file save dialog - saving to: '{dest_path}'")
@@ -388,3 +447,4 @@ def update_and_export_report(browser, request: AgedReceivablesSummaryRequest) ->
 
     common.verify_saved_file(dest_path)
     logger.info(f"File successfully saved: '{dest_path}'")
+    return dest_path

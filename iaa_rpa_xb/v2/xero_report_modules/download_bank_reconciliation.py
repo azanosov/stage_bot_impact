@@ -84,7 +84,6 @@ from typing import Literal, get_args
 from iaa_rpa_utils import ProcessLogger, setup_logger
 from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog, xpath_literal
 
-
 # Set up logger
 logger = setup_logger(__name__)
 
@@ -101,20 +100,32 @@ __all__ = [
 # --------------------------------------------------------------------
 # Module constants
 # --------------------------------------------------------------------
-DEFAULT_ELEMENT_TIMEOUT = 5   # seconds; general element waits (overridable per run)
-EXPORT_TIMEOUT = 10           # seconds; Update/Export/format - Xero builds server-side
-_MIN_FINANCIAL_YEAR = 2000    # earliest financial year we accept
+DEFAULT_ELEMENT_TIMEOUT = 5  # seconds; general element waits (overridable per run)
+EXPORT_TIMEOUT = 10  # seconds; Update/Export/format - Xero builds server-side
+_MIN_FINANCIAL_YEAR = 2000  # earliest financial year we accept
 
 # Locale-independent month abbreviations, matching Xero's date-field format
 # (e.g. "1 Jul 2023"). Avoids strftime('%b') locale surprises.
 _MONTH_ABBR = (
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
 )
 
 # Bank-account autocompleter (combobox) and its dropdown listbox. Both functions
 # open the combobox; only the download path types into it to filter.
-_COMBOBOX_LOCATOR = "xpath://input[@data-automationid='Bank Account-selector-autocompleter--input']"
+_COMBOBOX_LOCATOR = (
+    "xpath://input[@data-automationid='Bank Account-selector-autocompleter--input']"
+)
 _ACCOUNT_ITEM_LOCATOR = (
     "xpath://div[@data-automationid='Bank Account-selector-autocompleter--list']"
     "//li[@aria-label]"
@@ -132,7 +143,9 @@ _ENUMERATE_ACCOUNTS_JS = (
 
 # Settings panel and toolbar controls.
 _UPDATE_LOCATOR = "xpath://button[@data-automationid='settings-panel-update-button']"
-_EXPORT_BUTTON_LOCATOR = "xpath://button[@data-automationid='report-toolbar-export-button']"
+_EXPORT_BUTTON_LOCATOR = (
+    "xpath://button[@data-automationid='report-toolbar-export-button']"
+)
 
 # Supported export formats: format name -> (menu-item locator, saved extension).
 # The saved extension is the source of truth for the filename.
@@ -203,19 +216,28 @@ class BankReconciliationRequest:
             )
 
         # Provided dates must be real date objects (datetime is a date subclass).
-        for label, value in (("start_date", self.start_date), ("end_date", self.end_date)):
+        for label, value in (
+            ("start_date", self.start_date),
+            ("end_date", self.end_date),
+        ):
             if value is not None and not isinstance(value, date):
-                raise TypeError(f"{label} must be a datetime.date, got {type(value).__name__}")
+                raise TypeError(
+                    f"{label} must be a datetime.date, got {type(value).__name__}"
+                )
 
         # financial_year is the fallback source; required only when a date is missing.
-        if (self.start_date is None or self.end_date is None) and self.financial_year is None:
+        if (
+            self.start_date is None or self.end_date is None
+        ) and self.financial_year is None:
             raise ValueError(
                 "financial_year is required when start_date or end_date is omitted"
             )
 
         # Validate financial_year when present. bool is an int subclass, exclude it.
         if self.financial_year is not None:
-            if not isinstance(self.financial_year, int) or isinstance(self.financial_year, bool):
+            if not isinstance(self.financial_year, int) or isinstance(
+                self.financial_year, bool
+            ):
                 raise TypeError(
                     f"financial_year must be an int, got {type(self.financial_year).__name__}"
                 )
@@ -270,7 +292,11 @@ class BankReconciliationRequest:
             "Bank Account": self.bank_account,
             "Start Date": self.resolved_start_date,
             "End Date": self.resolved_end_date,
-            "Financial Year": self.financial_year if self.financial_year is not None else "(from dates)",
+            "Financial Year": (
+                self.financial_year
+                if self.financial_year is not None
+                else "(from dates)"
+            ),
             "Export Format": self.export_format,
             "Saved Extension": self.saved_extension,
             "Download Directory": self.download_directory,
@@ -282,7 +308,9 @@ class BankReconciliationRequest:
         return [f"{label:<{width}} : {value}" for label, value in rows.items()]
 
 
-def list_all_bank_accounts(browser, *, element_timeout: int = DEFAULT_ELEMENT_TIMEOUT) -> list[str]:
+def list_all_bank_accounts(
+    browser, *, element_timeout: int = DEFAULT_ELEMENT_TIMEOUT
+) -> list[str]:
     """
     Enumerate every bank account available on the Bank Reconciliation page.
 
@@ -305,7 +333,9 @@ def list_all_bank_accounts(browser, *, element_timeout: int = DEFAULT_ELEMENT_TI
     logger.info("Opening bank account dropdown to enumerate accounts...")
     browser.click_element(_COMBOBOX_LOCATOR, timeout=element_timeout)
 
-    if not browser.does_page_contain_element(_ACCOUNT_ITEM_LOCATOR, timeout=element_timeout):
+    if not browser.does_page_contain_element(
+        _ACCOUNT_ITEM_LOCATOR, timeout=element_timeout
+    ):
         logger.info("No bank accounts available for this organisation")
         return []
 
@@ -315,7 +345,9 @@ def list_all_bank_accounts(browser, *, element_timeout: int = DEFAULT_ELEMENT_TI
     return accounts
 
 
-def download_bank_reconciliation_report(browser, request: BankReconciliationRequest) -> None:
+def download_bank_reconciliation_report(
+    browser, request: BankReconciliationRequest
+) -> None:
     """
     Download a Bank Reconciliation report for one named bank account.
 
@@ -406,10 +438,20 @@ def enter_report_dates(browser, request: BankReconciliationRequest) -> None:
     timeout = request.element_timeout
     logger.info("Entering report period dates...")
 
-    _type_date(browser, "id:report-settings-custom-date-input-from", request.resolved_start_date, timeout)
+    _type_date(
+        browser,
+        "id:report-settings-custom-date-input-from",
+        request.resolved_start_date,
+        timeout,
+    )
     logger.info(f"Entered From date: {request.resolved_start_date}")
 
-    _type_date(browser, "id:report-settings-custom-date-input-to", request.resolved_end_date, timeout)
+    _type_date(
+        browser,
+        "id:report-settings-custom-date-input-to",
+        request.resolved_end_date,
+        timeout,
+    )
     logger.info(f"Entered To date: {request.resolved_end_date}")
 
 
@@ -418,9 +460,9 @@ def _type_date(browser, locator: str, value: str, timeout: int) -> None:
     (CTRL+A / DELETE / type / TAB), via the wrapper's active-element keys."""
     browser.click_element(locator, timeout=timeout)
     browser.send_keys_to_active_element("\ue009" + "a")  # CTRL + A to select all
-    browser.send_keys_to_active_element("\ue003")        # DELETE to clear existing value
-    browser.send_keys_to_active_element(value)           # Type the date
-    browser.send_keys_to_active_element("\ue004")        # TAB to confirm and move on
+    browser.send_keys_to_active_element("\ue003")  # DELETE to clear existing value
+    browser.send_keys_to_active_element(value)  # Type the date
+    browser.send_keys_to_active_element("\ue004")  # TAB to confirm and move on
 
 
 def generate_and_export_report(browser, request: BankReconciliationRequest) -> None:
@@ -450,12 +492,16 @@ def generate_and_export_report(browser, request: BankReconciliationRequest) -> N
 
     # The Export button only renders once the report has data.
     if not browser.does_page_contain_element(_EXPORT_BUTTON_LOCATOR, timeout=timeout):
-        logger.warning("Export button not found - no Bank Reconciliation data for this account")
+        logger.warning(
+            "Export button not found - no Bank Reconciliation data for this account"
+        )
         raise RuntimeError("No Bank Reconciliation data available for this account.")
     logger.info("'Export' button present - report contains data")
 
     # Open the Export menu and click the chosen format item.
-    logger.info(f"Exporting as '{request.export_format}' (saved as '{request.saved_extension}')...")
+    logger.info(
+        f"Exporting as '{request.export_format}' (saved as '{request.saved_extension}')..."
+    )
     browser.click_element(_EXPORT_BUTTON_LOCATOR, timeout=EXPORT_TIMEOUT)
     logger.info("Export menu opened")
 

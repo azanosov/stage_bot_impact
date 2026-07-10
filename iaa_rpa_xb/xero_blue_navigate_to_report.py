@@ -7,7 +7,6 @@ from iaa_rpa_utils.browser import safe_click
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 
-
 # Set up logger
 logger = setup_logger(__name__)
 
@@ -21,7 +20,7 @@ logger = setup_logger(__name__)
 def xero_blue_navigate_to_report(
     browser,
     xero_blue_report_name: str,
-    xero_blue_title: str="",
+    xero_blue_title: str = "",
 ):
     """
     Navigate to a specific Xero Blue report page by verifying the page title and clicking the report button.

@@ -92,24 +92,30 @@ def take_full_page_screenshot(driver, save_path: str) -> bool:
         if folder:
             os.makedirs(folder, exist_ok=True)
 
-        metrics = driver.execute_cdp_cmd('Page.getLayoutMetrics', {})
-        content_width = math.ceil(metrics['contentSize']['width'])
-        content_height = math.ceil(metrics['contentSize']['height'])
+        metrics = driver.execute_cdp_cmd("Page.getLayoutMetrics", {})
+        content_width = math.ceil(metrics["contentSize"]["width"])
+        content_height = math.ceil(metrics["contentSize"]["height"])
 
-        driver.execute_cdp_cmd('Emulation.setDeviceMetricsOverride', {
-            'mobile': False,
-            'width': content_width,
-            'height': content_height,
-            'deviceScaleFactor': 1,
-        })
+        driver.execute_cdp_cmd(
+            "Emulation.setDeviceMetricsOverride",
+            {
+                "mobile": False,
+                "width": content_width,
+                "height": content_height,
+                "deviceScaleFactor": 1,
+            },
+        )
 
-        result = driver.execute_cdp_cmd('Page.captureScreenshot', {
-            'format': 'png',
-            'captureBeyondViewport': True,
-        })
+        result = driver.execute_cdp_cmd(
+            "Page.captureScreenshot",
+            {
+                "format": "png",
+                "captureBeyondViewport": True,
+            },
+        )
 
-        with open(save_path, 'wb') as f:
-            f.write(base64.b64decode(result['data']))
+        with open(save_path, "wb") as f:
+            f.write(base64.b64decode(result["data"]))
 
         logger.info(f"Full-page screenshot saved: {save_path}")
         return True
@@ -118,7 +124,7 @@ def take_full_page_screenshot(driver, save_path: str) -> bool:
         return False
     finally:
         try:
-            driver.execute_cdp_cmd('Emulation.clearDeviceMetricsOverride', {})
+            driver.execute_cdp_cmd("Emulation.clearDeviceMetricsOverride", {})
         except Exception:
             pass
 
@@ -159,7 +165,9 @@ def find_element_with_fallback(
             last_exc = e
             continue
 
-    raise TimeoutException(f"Element not found with any of: {list(locators)}") from last_exc
+    raise TimeoutException(
+        f"Element not found with any of: {list(locators)}"
+    ) from last_exc
 
 
 def handle_chrome_save_as_dialog(
@@ -229,7 +237,9 @@ def handle_chrome_save_as_dialog(
     # path:"1" is intentionally omitted - on some Chrome builds the GPU overlay
     # occupies path:1 before the dialog renders, causing an immediate failure.
     # Searching by name alone lets robocorp.windows poll the full dialog_timeout.
-    app.find(f'control:"WindowControl" and name:"{dialog_name}"', timeout=dialog_timeout)
+    app.find(
+        f'control:"WindowControl" and name:"{dialog_name}"', timeout=dialog_timeout
+    )
     logger.info(f"{dialog_name!r} dialog found")
 
     normalized = os.path.normpath(dest_path)
@@ -241,8 +251,8 @@ def handle_chrome_save_as_dialog(
     find_input = app.find(
         'control:"EditControl" and class:"Edit" and name:"File name:" and path:"1|1|1|6|3|2|1"'
     ).click()
-    find_input.send_keys("{CTRL}a")   # select all existing text
-    find_input.send_keys("{DEL}")      # clear it
+    find_input.send_keys("{CTRL}a")  # select all existing text
+    find_input.send_keys("{DEL}")  # clear it
     find_input.send_keys(normalized)
     logger.info(f"File path entered: {normalized}")
     time.sleep(2)
@@ -255,7 +265,8 @@ def handle_chrome_save_as_dialog(
     # Handle optional "Confirm Save As" overwrite dialog
     try:
         save_confirm_popup = app.find(
-            'control:"WindowControl" and name:"Confirm Save As" and path:"1|1"', timeout=3
+            'control:"WindowControl" and name:"Confirm Save As" and path:"1|1"',
+            timeout=3,
         )
         save_confirm_popup.find(
             'control:"ButtonControl" and class:"CCPushButton" and name:"Yes"'
@@ -298,7 +309,7 @@ def focus_browser_window(driver) -> bool:
             return False
 
         kernel32 = ctypes.windll.kernel32
-        user32   = ctypes.windll.user32
+        user32 = ctypes.windll.user32
 
         # ----------------------------------------------------------------
         # 1. Enumerate all processes and build a parent→children map so we
@@ -308,16 +319,16 @@ def focus_browser_window(driver) -> bool:
 
         class PROCESSENTRY32(ctypes.Structure):
             _fields_ = [
-                ("dwSize",              ctypes.wintypes.DWORD),
-                ("cntUsage",            ctypes.wintypes.DWORD),
-                ("th32ProcessID",       ctypes.wintypes.DWORD),
-                ("th32DefaultHeapID",   ctypes.POINTER(ctypes.c_ulong)),
-                ("th32ModuleID",        ctypes.wintypes.DWORD),
-                ("cntThreads",          ctypes.wintypes.DWORD),
+                ("dwSize", ctypes.wintypes.DWORD),
+                ("cntUsage", ctypes.wintypes.DWORD),
+                ("th32ProcessID", ctypes.wintypes.DWORD),
+                ("th32DefaultHeapID", ctypes.POINTER(ctypes.c_ulong)),
+                ("th32ModuleID", ctypes.wintypes.DWORD),
+                ("cntThreads", ctypes.wintypes.DWORD),
                 ("th32ParentProcessID", ctypes.wintypes.DWORD),
-                ("pcPriClassBase",      ctypes.c_long),
-                ("dwFlags",             ctypes.wintypes.DWORD),
-                ("szExeFile",           ctypes.c_char * 260),
+                ("pcPriClassBase", ctypes.c_long),
+                ("dwFlags", ctypes.wintypes.DWORD),
+                ("szExeFile", ctypes.c_char * 260),
             ]
 
         snap = kernel32.CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0)
@@ -380,13 +391,13 @@ def focus_browser_window(driver) -> bool:
         #    grants the right to steal focus.
         # ----------------------------------------------------------------
         fg_hwnd = user32.GetForegroundWindow()
-        fg_tid  = user32.GetWindowThreadProcessId(fg_hwnd, None)
+        fg_tid = user32.GetWindowThreadProcessId(fg_hwnd, None)
         cur_tid = kernel32.GetCurrentThreadId()
 
         if fg_tid and fg_tid != cur_tid:
             user32.AttachThreadInput(fg_tid, cur_tid, True)
 
-        user32.ShowWindow(hwnd, 9)       # SW_RESTORE — un-minimise if needed
+        user32.ShowWindow(hwnd, 9)  # SW_RESTORE — un-minimise if needed
         user32.BringWindowToTop(hwnd)
         user32.SetForegroundWindow(hwnd)
 
@@ -414,7 +425,7 @@ def xpath_literal(s: str) -> str:
     if '"' not in s:
         return f'"{s}"'
     parts = s.split("'")
-    return "concat(" + ", \"'\", ".join(f"'{p}'" for p in parts) + ")"
+    return "concat(" + ', "\'", '.join(f"'{p}'" for p in parts) + ")"
 
 
 def retry(attempts=3, delay=1, exceptions=Exception, backoff=1):

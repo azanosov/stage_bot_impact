@@ -5,8 +5,8 @@ If you need the functionality provided by this module,
 please first contact Praveen Lobo and/or Alexander Zanosov.
 """
 
-
 from datetime import datetime
+
 # Selenium imports
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.wait import WebDriverWait
@@ -16,15 +16,11 @@ from selenium.webdriver.support import expected_conditions as EC
 from iaa_rpa_utils import setup_logger
 from iaa_rpa_utils.browser import safe_click
 
-
 # Set up logger
 logger = setup_logger(__name__)
 
-def xero_invoice_mark_as_sent(
-                                browser,
-                                xero_invoice_number,
-                                xero_url
-                            ):
+
+def xero_invoice_mark_as_sent(browser, xero_invoice_number, xero_url):
     """Mark an invoice as sent in Xero.
 
     This function automates the process of marking an invoice as sent in Xero Blue.
@@ -104,7 +100,9 @@ def xero_invoice_mark_as_sent(
 
                     # For new UI: Click Invoices link
                     # Opens the Invoices page with all invoice lists
-                    invoice_xpath = "//a[@role='link']//span[normalize-space(text())='Invoices']"
+                    invoice_xpath = (
+                        "//a[@role='link']//span[normalize-space(text())='Invoices']"
+                    )
                     elem = WebDriverWait(driver, 5).until(
                         EC.element_to_be_clickable((By.XPATH, invoice_xpath))
                     )
@@ -138,10 +136,12 @@ def xero_invoice_mark_as_sent(
 
                 # Click the "Awaiting Payment" filter to show only unpaid invoices
                 # This narrows down the list to invoices that need to be marked as sent
-                awaiting_payments = "//a[contains(normalize-space(), 'Awaiting Payment')]"
+                awaiting_payments = (
+                    "//a[contains(normalize-space(), 'Awaiting Payment')]"
+                )
                 awaiting_ele = WebDriverWait(driver, 10).until(
-                            EC.visibility_of_element_located((By.XPATH, awaiting_payments))
-                        )
+                    EC.visibility_of_element_located((By.XPATH, awaiting_payments))
+                )
                 safe_click(driver, awaiting_ele, "Awaiting Payment")
                 logger.info("Clicked 'Awaiting Payment' filter")
 
@@ -149,31 +149,43 @@ def xero_invoice_mark_as_sent(
                 # Uses keyboard automation to clear field and enter invoice number
                 input_xpath = "//input[contains(@id, 'inputEl')]"
                 input_client_ele = WebDriverWait(driver, 5).until(
-                        EC.visibility_of_element_located((By.XPATH, input_xpath))
-                    )
-                input_client_ele.send_keys(u'\ue009' + 'a')  # CTRL + A to select all text
-                input_client_ele.send_keys(u'\ue003')        # DELETE to clear the field
-                input_client_ele.send_keys(xero_invoice_number) # Type the invoice number
-                input_client_ele.send_keys(u'\ue004')        # TAB to trigger search
-                logger.info(f"Entered invoice number in search field: {xero_invoice_number}")
+                    EC.visibility_of_element_located((By.XPATH, input_xpath))
+                )
+                input_client_ele.send_keys(
+                    "\ue009" + "a"
+                )  # CTRL + A to select all text
+                input_client_ele.send_keys("\ue003")  # DELETE to clear the field
+                input_client_ele.send_keys(
+                    xero_invoice_number
+                )  # Type the invoice number
+                input_client_ele.send_keys("\ue004")  # TAB to trigger search
+                logger.info(
+                    f"Entered invoice number in search field: {xero_invoice_number}"
+                )
 
                 # Select the invoice checkbox in the grid view
                 # Clicks the first row checkbox to select the matching invoice
                 checker_xpath = "//*[@id='gridview-1056']//table//div[@class='x-grid-row-checker'][1]"
                 checker_ele = WebDriverWait(driver, 10).until(
-                            EC.visibility_of_element_located((By.XPATH, checker_xpath))
-                        )
+                    EC.visibility_of_element_located((By.XPATH, checker_xpath))
+                )
                 safe_click(driver, checker_ele, "Invoice checkbox")
                 logger.info(f"Selected invoice checkbox for: {xero_invoice_number}")
 
                 # Click the "Mark as Sent" button to update invoice status
                 # This marks the invoice as sent in Xero's system
-                mark_as_sent_button_xpath = "//a[@aria-role='button']//span[normalize-space()='Mark as Sent']"
+                mark_as_sent_button_xpath = (
+                    "//a[@aria-role='button']//span[normalize-space()='Mark as Sent']"
+                )
                 mark_as_sent_button_ele = WebDriverWait(driver, 10).until(
-                            EC.visibility_of_element_located((By.XPATH, mark_as_sent_button_xpath))
-                        )
+                    EC.visibility_of_element_located(
+                        (By.XPATH, mark_as_sent_button_xpath)
+                    )
+                )
                 safe_click(driver, mark_as_sent_button_ele, "Mark as Sent")
-                logger.info(f"Clicked 'Mark as Sent' button for invoice: {xero_invoice_number}")
+                logger.info(
+                    f"Clicked 'Mark as Sent' button for invoice: {xero_invoice_number}"
+                )
 
         # Calculate duration and log successful completion
         end_time = datetime.now()

@@ -44,7 +44,9 @@ from pathlib import Path
 try:
     import fitz  # PyMuPDF - PDF manipulation library
 except ImportError:
-    raise ImportError("PyMuPDF (fitz) is required. Install it with: pip install PyMuPDF")
+    raise ImportError(
+        "PyMuPDF (fitz) is required. Install it with: pip install PyMuPDF"
+    )
 
 # ====================================================================================
 # MODULE SETUP
@@ -53,8 +55,12 @@ except ImportError:
 _logger = logging.getLogger("IARPA." + __name__)
 
 
-def search_and_redact_text(input_pdf: str, output_pdf: str, search_texts: List[str],
-                           exclude_texts: List[str] = None) -> bool:
+def search_and_redact_text(
+    input_pdf: str,
+    output_pdf: str,
+    search_texts: List[str],
+    exclude_texts: List[str] = None,
+) -> bool:
     """
     Search for specific text in a PDF and redact (white out) all instances.
 
@@ -122,7 +128,9 @@ def search_and_redact_text(input_pdf: str, output_pdf: str, search_texts: List[s
         # If the input is not a PDF (e.g., HTML from ATO portal), convert it to PDF first
         pdf_document = fitz.open(input_pdf)
         if not pdf_document.is_pdf:
-            _logger.info(f"  Input is not a PDF ({os.path.splitext(input_pdf)[1]}) - converting to PDF")
+            _logger.info(
+                f"  Input is not a PDF ({os.path.splitext(input_pdf)[1]}) - converting to PDF"
+            )
             pdf_bytes = pdf_document.convert_to_pdf()
             pdf_document.close()
             pdf_document = fitz.open("pdf", pdf_bytes)
@@ -158,7 +166,9 @@ def search_and_redact_text(input_pdf: str, output_pdf: str, search_texts: List[s
                 text_instances = page.search_for(search_text)
 
                 if text_instances:
-                    _logger.info(f"    Page {page_num + 1}: Found {len(text_instances)} instance(s) of text to redact")
+                    _logger.info(
+                        f"    Page {page_num + 1}: Found {len(text_instances)} instance(s) of text to redact"
+                    )
 
                 # Apply redaction annotation to each found instance
                 for inst in text_instances:
@@ -168,7 +178,9 @@ def search_and_redact_text(input_pdf: str, output_pdf: str, search_texts: List[s
                         for ex_rect in exclude_rects:
                             # Skip if the match is contained within or overlaps the exclude region
                             if ex_rect.contains(inst) or inst.intersects(ex_rect):
-                                _logger.info(f"    Page {page_num + 1}: Skipping redaction - text is part of excluded region (e.g., PRN)")
+                                _logger.info(
+                                    f"    Page {page_num + 1}: Skipping redaction - text is part of excluded region (e.g., PRN)"
+                                )
                                 skip = True
                                 break
                         if skip:
@@ -185,7 +197,9 @@ def search_and_redact_text(input_pdf: str, output_pdf: str, search_texts: List[s
             # This permanently removes the text under the redaction annotations
             if page_redactions > 0:
                 page.apply_redactions()
-                _logger.info(f"  Page {page_num + 1}: Applied {page_redactions} redaction(s)")
+                _logger.info(
+                    f"  Page {page_num + 1}: Applied {page_redactions} redaction(s)"
+                )
 
         # ====================================================================
         # SAVE AND CLEANUP
@@ -205,9 +219,13 @@ def search_and_redact_text(input_pdf: str, output_pdf: str, search_texts: List[s
         return False
 
 
-def redact_tfn_from_pdf(input_pdf: str, output_pdf: str, tfn_number: str,
-                        additional_patterns: List[str] = None,
-                        prn_numbers: Union[str, List[str]] = None) -> bool:
+def redact_tfn_from_pdf(
+    input_pdf: str,
+    output_pdf: str,
+    tfn_number: str,
+    additional_patterns: List[str] = None,
+    prn_numbers: Union[str, List[str]] = None,
+) -> bool:
     """
     Convenience function to redact Tax File Number (TFN) from a PDF.
     Only redacts the TFN number itself (not labels like "TFN" or "Tax file number").
@@ -262,10 +280,14 @@ def redact_tfn_from_pdf(input_pdf: str, output_pdf: str, tfn_number: str,
             # Pattern 3: Standard ATO format with spaces (XXX XXX XXX)
             # Only apply if the TFN has at least 9 digits
             if len(tfn_clean) >= 9:
-                search_texts.append(f"{tfn_clean[:3]} {tfn_clean[3:6]} {tfn_clean[6:9]}")
+                search_texts.append(
+                    f"{tfn_clean[:3]} {tfn_clean[3:6]} {tfn_clean[6:9]}"
+                )
 
             # Log the TFN being redacted (masked for security in logs)
-            _logger.info(f"Redacting TFN number only (not labels): {tfn_clean[:3]}***{tfn_clean[-2:]} (masked for security)")
+            _logger.info(
+                f"Redacting TFN number only (not labels): {tfn_clean[:3]}***{tfn_clean[-2:]} (masked for security)"
+            )
 
         # ====================================================================
         # ADDITIONAL PATTERNS
@@ -290,14 +312,20 @@ def redact_tfn_from_pdf(input_pdf: str, output_pdf: str, tfn_number: str,
                 prn_clean = prn.replace(" ", "").replace("-", "")
                 exclude_texts.append(prn.strip())
                 exclude_texts.append(prn_clean)
-                exclude_texts.append(f"{prn_clean[:3]} {prn_clean[3:8]} {prn_clean[8:11]} {prn_clean[11:14]} {prn_clean[14:]}")
-            _logger.info(f"PRN exclusion: {len(raw_list)} PRN(s), {len(exclude_texts)} variation(s) total")
+                exclude_texts.append(
+                    f"{prn_clean[:3]} {prn_clean[3:8]} {prn_clean[8:11]} {prn_clean[11:14]} {prn_clean[14:]}"
+                )
+            _logger.info(
+                f"PRN exclusion: {len(raw_list)} PRN(s), {len(exclude_texts)} variation(s) total"
+            )
 
         # ====================================================================
         # PERFORM REDACTION
         # ====================================================================
         # Call the generic redaction function with all patterns
-        return search_and_redact_text(input_pdf, output_pdf, search_texts, exclude_texts=exclude_texts)
+        return search_and_redact_text(
+            input_pdf, output_pdf, search_texts, exclude_texts=exclude_texts
+        )
 
     except Exception as e:
         _logger.error(f"ERROR: Failed to redact TFN from PDF: {str(e)}", exc_info=True)

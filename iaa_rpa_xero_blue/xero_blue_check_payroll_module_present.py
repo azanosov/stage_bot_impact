@@ -5,7 +5,6 @@ If you need the functionality provided by this module,
 please first contact Praveen Lobo and/or Alexander Zanosov.
 """
 
-
 from __future__ import annotations
 
 from datetime import datetime

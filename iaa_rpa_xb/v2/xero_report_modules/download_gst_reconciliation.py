@@ -80,7 +80,6 @@ from typing import Literal, get_args
 from iaa_rpa_utils import ProcessLogger, setup_logger
 from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog
 
-
 # Set up logger
 logger = setup_logger(__name__)
 
@@ -96,23 +95,41 @@ __all__ = [
 # --------------------------------------------------------------------
 # Module constants
 # --------------------------------------------------------------------
-DEFAULT_ELEMENT_TIMEOUT = 5   # seconds; general element waits (overridable per run)
-EXPORT_TIMEOUT = 10           # seconds; Update/Export/format - Xero builds the file server-side
-_MIN_FINANCIAL_YEAR = 2000    # earliest financial year we accept
+DEFAULT_ELEMENT_TIMEOUT = 5  # seconds; general element waits (overridable per run)
+EXPORT_TIMEOUT = 10  # seconds; Update/Export/format - Xero builds the file server-side
+_MIN_FINANCIAL_YEAR = 2000  # earliest financial year we accept
 
 # Locale-independent month abbreviations, matching the labels Xero's legacy date
 # field expects (e.g. "1 Jul 2023"). Avoids strftime('%b') locale surprises.
 _MONTH_ABBR = (
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
 )
 
 # Page locators for the Update and Export buttons. Xero ships two UI variants of
 # this legacy page; we probe the "default" locator first and fall back to "legacy".
-_DEFAULT_UPDATE_LOCATOR = "xpath://button[@type='button' and normalize-space(text())='Update']"
-_LEGACY_UPDATE_LOCATOR = "xpath://a[normalize-space(text())='Update' and contains(@onclick,'UpdateReport')]"
-_DEFAULT_EXPORT_LOCATOR = "xpath://button[@type='button' and normalize-space(text())='Export']"
-_LEGACY_EXPORT_LOCATOR = "xpath://span[@class='words' and normalize-space(text())='Export']"
+_DEFAULT_UPDATE_LOCATOR = (
+    "xpath://button[@type='button' and normalize-space(text())='Update']"
+)
+_LEGACY_UPDATE_LOCATOR = (
+    "xpath://a[normalize-space(text())='Update' and contains(@onclick,'UpdateReport')]"
+)
+_DEFAULT_EXPORT_LOCATOR = (
+    "xpath://button[@type='button' and normalize-space(text())='Export']"
+)
+_LEGACY_EXPORT_LOCATOR = (
+    "xpath://span[@class='words' and normalize-space(text())='Export']"
+)
 
 # Supported export formats. Each maps the caller-facing format name to:
 #   (default-variant format-link locator, legacy-variant locator, SAVED extension)
@@ -181,19 +198,28 @@ class GstReconciliationRequest:
 
         # Provided dates must be real date objects (datetime is a date subclass,
         # so it is accepted too - only the calendar part is used).
-        for label, value in (("start_date", self.start_date), ("end_date", self.end_date)):
+        for label, value in (
+            ("start_date", self.start_date),
+            ("end_date", self.end_date),
+        ):
             if value is not None and not isinstance(value, date):
-                raise TypeError(f"{label} must be a datetime.date, got {type(value).__name__}")
+                raise TypeError(
+                    f"{label} must be a datetime.date, got {type(value).__name__}"
+                )
 
         # financial_year is the fallback source; required only when a date is missing.
-        if (self.start_date is None or self.end_date is None) and self.financial_year is None:
+        if (
+            self.start_date is None or self.end_date is None
+        ) and self.financial_year is None:
             raise ValueError(
                 "financial_year is required when start_date or end_date is omitted"
             )
 
         # Validate financial_year when present. bool is an int subclass, exclude it.
         if self.financial_year is not None:
-            if not isinstance(self.financial_year, int) or isinstance(self.financial_year, bool):
+            if not isinstance(self.financial_year, int) or isinstance(
+                self.financial_year, bool
+            ):
                 raise TypeError(
                     f"financial_year must be an int, got {type(self.financial_year).__name__}"
                 )
@@ -242,7 +268,11 @@ class GstReconciliationRequest:
         rows = {
             "Start Date": self.resolved_start_date,
             "End Date": self.resolved_end_date,
-            "Financial Year": self.financial_year if self.financial_year is not None else "(from dates)",
+            "Financial Year": (
+                self.financial_year
+                if self.financial_year is not None
+                else "(from dates)"
+            ),
             "Export Format": self.export_format,
             "Saved Extension": self.saved_extension,
             "Download Directory": self.download_directory,
@@ -318,9 +348,9 @@ def _type_date(browser, locator: str, value: str, timeout: int) -> None:
     (CTRL+A / DELETE / type / TAB), via the wrapper's active-element keys."""
     browser.click_element(locator, timeout=timeout)
     browser.send_keys_to_active_element("\ue009" + "a")  # CTRL + A to select all
-    browser.send_keys_to_active_element("\ue003")        # DELETE to clear existing value
-    browser.send_keys_to_active_element(value)           # Type the date
-    browser.send_keys_to_active_element("\ue004")        # TAB to confirm and move on
+    browser.send_keys_to_active_element("\ue003")  # DELETE to clear existing value
+    browser.send_keys_to_active_element(value)  # Type the date
+    browser.send_keys_to_active_element("\ue004")  # TAB to confirm and move on
 
 
 def update_and_export_report(browser, request: GstReconciliationRequest) -> None:
@@ -359,7 +389,9 @@ def update_and_export_report(browser, request: GstReconciliationRequest) -> None
     elif browser.does_page_contain_element(_LEGACY_EXPORT_LOCATOR, timeout=timeout):
         export_locator = _LEGACY_EXPORT_LOCATOR
     else:
-        logger.warning("Export button not found - no report data available for this client")
+        logger.warning(
+            "Export button not found - no report data available for this client"
+        )
         raise RuntimeError("No report data available for this client.")
     logger.info("'Export' button located")
 

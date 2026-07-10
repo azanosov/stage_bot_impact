@@ -27,9 +27,7 @@ WindowContext = Union[WindowElement, Desktop]
 
 
 def connect_to_window(
-    window_locator: str,
-    timeout: int = 10,
-    window_description: str = "application"
+    window_locator: str, timeout: int = 10, window_description: str = "application"
 ) -> WindowElement:
     """
     Connect to a desktop window using a locator string.
@@ -49,7 +47,9 @@ def connect_to_window(
         window = connect_to_window('regex:.*M1.*', timeout=10, window_description="M1")
     """
     try:
-        logger.info(f"Attempting to connect to {window_description} window with locator: {window_locator}")
+        logger.info(
+            f"Attempting to connect to {window_description} window with locator: {window_locator}"
+        )
         window = windows.find_window(window_locator, timeout=timeout)
         logger.info(f"Successfully connected to {window_description} window")
         return window
@@ -60,9 +60,7 @@ def connect_to_window(
 
 
 def connect_to_window_by_regex(
-    regex_pattern: str,
-    timeout: int = 10,
-    window_description: str = "window"
+    regex_pattern: str, timeout: int = 10, window_description: str = "window"
 ) -> WindowElement:
     """
     Connect to a desktop window using a regex pattern.
@@ -85,17 +83,13 @@ def connect_to_window_by_regex(
         window = connect_to_window_by_regex('.*M1.*', timeout=10, window_description="M1")
     """
     # Ensure regex: prefix is present
-    if not regex_pattern.startswith('regex:'):
-        regex_pattern = f'regex:{regex_pattern}'
+    if not regex_pattern.startswith("regex:"):
+        regex_pattern = f"regex:{regex_pattern}"
 
     return connect_to_window(regex_pattern, timeout, window_description)
 
 
-def locate(
-    locator: str,
-    window: WindowContext,
-    timeout: int = 10
-) -> object:
+def locate(locator: str, window: WindowContext, timeout: int = 10) -> object:
     """
     Find an element within a window or on the desktop.
 
@@ -143,11 +137,7 @@ def locate(
         raise ElementNotFoundError(error_msg) from e
 
 
-def locate_and_click(
-    locator: str,
-    window: WindowContext,
-    timeout: int = 10
-) -> None:
+def locate_and_click(locator: str, window: WindowContext, timeout: int = 10) -> None:
     """
     Find an element and click it.
 
@@ -192,7 +182,7 @@ def enter_keys_into_input_field(
     element: object,
     text: str,
     clear_first: bool = True,
-    desktop: Optional[Desktop] = None
+    desktop: Optional[Desktop] = None,
 ) -> None:
     """
     Enter text into an input field with optional clearing.
@@ -248,7 +238,7 @@ def is_logged_in(
     window_locator: str,
     verification_locator: str,
     timeout: int = 5,
-    window_description: str = "application"
+    window_description: str = "application",
 ) -> bool:
     """
     Check if user is logged in by verifying presence of a specific element.
@@ -285,7 +275,7 @@ def select_dropdown_with_down(
     dropdown_locator: str,
     target_option: str,
     window: WindowContext,
-    max_attempts: int = 20
+    max_attempts: int = 20,
 ) -> None:
     """
     Select a dropdown option by navigating with DOWN arrow key.
@@ -316,7 +306,9 @@ def select_dropdown_with_down(
         )
     """
     try:
-        logger.info(f"Selecting dropdown option '{target_option}' from '{dropdown_locator}'")
+        logger.info(
+            f"Selecting dropdown option '{target_option}' from '{dropdown_locator}'"
+        )
 
         if isinstance(window, Desktop):
             # Desktop path: open dropdown
@@ -336,7 +328,9 @@ def select_dropdown_with_down(
                     matches = window.find_elements(f'name:"{target_option}"')
                     if matches:
                         window.click(matches[0])
-                        logger.info(f"Successfully selected '{target_option}' from dropdown via Desktop")
+                        logger.info(
+                            f"Successfully selected '{target_option}' from dropdown via Desktop"
+                        )
                         return
                 except Exception:
                     pass
@@ -355,7 +349,9 @@ def select_dropdown_with_down(
                 try:
                     option_element = window.find(target_option, timeout=1)
                     option_element.click()
-                    logger.info(f"Successfully selected '{target_option}' from dropdown")
+                    logger.info(
+                        f"Successfully selected '{target_option}' from dropdown"
+                    )
                     return
                 except Exception:
                     pass
@@ -376,10 +372,7 @@ def select_dropdown_with_down(
 
 
 def click_using_ocr(
-    desktop: Desktop,
-    text: str,
-    element_description: str = "",
-    wait_time: float = 1.0
+    desktop: Desktop, text: str, element_description: str = "", wait_time: float = 1.0
 ) -> None:
     """
     Click an element identified by OCR text recognition.
@@ -429,7 +422,7 @@ def click_image_element(
     image_path: str,
     element_description: str = "",
     wait_time: float = 1.0,
-    click_index: int = 0
+    click_index: int = 0,
 ) -> dict:
     """
     Click an element identified by image template matching.
@@ -460,7 +453,7 @@ def click_image_element(
         "success": False,
         "element_found": False,
         "matches_count": 0,
-        "error_message": ""
+        "error_message": "",
     }
 
     description = element_description or image_path

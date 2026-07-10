@@ -72,7 +72,6 @@ from typing import Literal, get_args
 from iaa_rpa_utils import ProcessLogger, setup_logger
 from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog
 
-
 # Set up logger
 logger = setup_logger(__name__)
 
@@ -88,15 +87,25 @@ __all__ = [
 # --------------------------------------------------------------------
 # Module constants
 # --------------------------------------------------------------------
-DEFAULT_ELEMENT_TIMEOUT = 5   # seconds; general element waits (overridable per run)
-EXPORT_TIMEOUT = 10           # seconds; Update/Export/Excel - Xero builds the file server-side
-_MIN_FINANCIAL_YEAR = 2000    # earliest financial year we accept
+DEFAULT_ELEMENT_TIMEOUT = 5  # seconds; general element waits (overridable per run)
+EXPORT_TIMEOUT = 10  # seconds; Update/Export/Excel - Xero builds the file server-side
+_MIN_FINANCIAL_YEAR = 2000  # earliest financial year we accept
 
 # Locale-independent month abbreviations, matching the labels Xero's date field
 # expects (e.g. "1 Jul 2023"). Avoids strftime('%b') locale surprises.
 _MONTH_ABBR = (
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
 )
 
 # Accounting methods, selected via the More options menu. The value maps to the
@@ -183,19 +192,28 @@ class GeneralLedgerDetailRequest:
 
         # Provided dates must be real date objects (datetime is a date subclass,
         # so it is accepted too - only the calendar part is used).
-        for label, value in (("start_date", self.start_date), ("end_date", self.end_date)):
+        for label, value in (
+            ("start_date", self.start_date),
+            ("end_date", self.end_date),
+        ):
             if value is not None and not isinstance(value, date):
-                raise TypeError(f"{label} must be a datetime.date, got {type(value).__name__}")
+                raise TypeError(
+                    f"{label} must be a datetime.date, got {type(value).__name__}"
+                )
 
         # financial_year is the fallback source; required only when a date is missing.
-        if (self.start_date is None or self.end_date is None) and self.financial_year is None:
+        if (
+            self.start_date is None or self.end_date is None
+        ) and self.financial_year is None:
             raise ValueError(
                 "financial_year is required when start_date or end_date is omitted"
             )
 
         # Validate financial_year when present. bool is an int subclass, exclude it.
         if self.financial_year is not None:
-            if not isinstance(self.financial_year, int) or isinstance(self.financial_year, bool):
+            if not isinstance(self.financial_year, int) or isinstance(
+                self.financial_year, bool
+            ):
                 raise TypeError(
                     f"financial_year must be an int, got {type(self.financial_year).__name__}"
                 )
@@ -249,7 +267,11 @@ class GeneralLedgerDetailRequest:
         rows = {
             "Start Date": self.resolved_start_date,
             "End Date": self.resolved_end_date,
-            "Financial Year": self.financial_year if self.financial_year is not None else "(from dates)",
+            "Financial Year": (
+                self.financial_year
+                if self.financial_year is not None
+                else "(from dates)"
+            ),
             "Accounting Method": self.accounting_label,
             "Export Format": self.export_format,
             "Saved Extension": self.saved_extension,
@@ -321,10 +343,20 @@ def enter_report_dates(browser, request: GeneralLedgerDetailRequest) -> None:
     timeout = request.element_timeout
     logger.info("Entering report period dates...")
 
-    _type_date(browser, "id:report-settings-custom-date-input-from", request.resolved_start_date, timeout)
+    _type_date(
+        browser,
+        "id:report-settings-custom-date-input-from",
+        request.resolved_start_date,
+        timeout,
+    )
     logger.info(f"Entered From date: {request.resolved_start_date}")
 
-    _type_date(browser, "id:report-settings-custom-date-input-to", request.resolved_end_date, timeout)
+    _type_date(
+        browser,
+        "id:report-settings-custom-date-input-to",
+        request.resolved_end_date,
+        timeout,
+    )
     logger.info(f"Entered To date: {request.resolved_end_date}")
 
 
@@ -333,9 +365,9 @@ def _type_date(browser, locator: str, value: str, timeout: int) -> None:
     (CTRL+A / DELETE / type / TAB), via the wrapper's active-element keys."""
     browser.click_element(locator, timeout=timeout)
     browser.send_keys_to_active_element("\ue009" + "a")  # CTRL + A to select all
-    browser.send_keys_to_active_element("\ue003")        # DELETE to clear existing value
-    browser.send_keys_to_active_element(value)           # Type the date
-    browser.send_keys_to_active_element("\ue004")        # TAB to confirm and move on
+    browser.send_keys_to_active_element("\ue003")  # DELETE to clear existing value
+    browser.send_keys_to_active_element(value)  # Type the date
+    browser.send_keys_to_active_element("\ue004")  # TAB to confirm and move on
 
 
 def select_accounting_method(browser, request: GeneralLedgerDetailRequest) -> None:
@@ -358,7 +390,9 @@ def select_accounting_method(browser, request: GeneralLedgerDetailRequest) -> No
     label = request.accounting_label
 
     option_id = _ACCOUNTING_OPTION_IDS[request.accounting_method]
-    more_button_locator = "xpath://button[@type='button' and normalize-space(text())='More']"
+    more_button_locator = (
+        "xpath://button[@type='button' and normalize-space(text())='More']"
+    )
     # Click the pickitem button for the chosen option, scoped to its stable id.
     # (The radio inside it is decorative; a bare //span[...='Cash'] could also
     # collide with the "Accounting Basis" row under the picklist's "Show" section.)
@@ -392,9 +426,15 @@ def update_and_export_report(browser, request: GeneralLedgerDetailRequest) -> No
     """
     logger.info("Starting report update and Excel export process...")
 
-    update_locator = "xpath://button[@type='button' and normalize-space(text())='Update']"
-    export_locator = "xpath://button[@type='button' and normalize-space(text())='Export']"
-    excel_locator = "xpath://button[@type='button']//span[normalize-space(text())='Excel']"
+    update_locator = (
+        "xpath://button[@type='button' and normalize-space(text())='Update']"
+    )
+    export_locator = (
+        "xpath://button[@type='button' and normalize-space(text())='Export']"
+    )
+    excel_locator = (
+        "xpath://button[@type='button']//span[normalize-space(text())='Excel']"
+    )
 
     # Click 'Update' to apply all configured report parameters
     logger.info("Clicking 'Update' button to apply report configuration...")
@@ -409,7 +449,9 @@ def update_and_export_report(browser, request: GeneralLedgerDetailRequest) -> No
     # Select 'Excel' to trigger the file download and open the Save As dialog
     logger.info("Selecting 'Excel' format to initiate file download...")
     browser.click_element(excel_locator, timeout=EXPORT_TIMEOUT)
-    logger.info("Excel export triggered. Waiting for Windows Save As dialog to appear...")
+    logger.info(
+        "Excel export triggered. Waiting for Windows Save As dialog to appear..."
+    )
 
     # Handle the Chrome save dialog and save to the requested path
     dest_path = request.dest_path

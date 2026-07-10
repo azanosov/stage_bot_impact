@@ -33,28 +33,35 @@ def safe_click(driver, element, description: str = ""):
         driver: The Selenium WebDriver object
         element: The element to click
         description: Description of the element for logging
-    
+
     Raises:
         ElementNotFoundError: If the element cannot be clicked even with JavaScript fallback
     """
     try:
-        driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+        driver.execute_script(
+            "arguments[0].scrollIntoView({block: 'center'});", element
+        )
         time.sleep(0.2)  # small settle time
         element.click()
         if description:
             iaalogger.info(f"Successfully clicked {description}")
     except Exception as e:
-        iaalogger.warning(f"Regular click failed for {description}, trying JavaScript click: {e}")
+        iaalogger.warning(
+            f"Regular click failed for {description}, trying JavaScript click: {e}"
+        )
         try:
             driver.execute_script("arguments[0].click();", element)
             if description:
                 iaalogger.info(f"Successfully clicked {description} using JavaScript")
         except Exception as js_error:
             iaalogger.error(f"Both click methods failed for {description}: {js_error}")
-            raise ElementNotFoundError(f"Failed to click element {description}: {js_error}") from js_error
+            raise ElementNotFoundError(
+                f"Failed to click element {description}: {js_error}"
+            ) from js_error
 
 
 # ---------- Profile helpers ----------
+
 
 def _resolve_user_data_dir() -> Path:
     home = Path.home()
@@ -67,7 +74,9 @@ def _resolve_user_data_dir() -> Path:
     else:  # Linux
         chrome = home / ".config" / "google-chrome"
         chromium = home / ".config" / "chromium"
-        return chrome if chrome.exists() else (chromium if chromium.exists() else chrome)
+        return (
+            chrome if chrome.exists() else (chromium if chromium.exists() else chrome)
+        )
 
 
 def _clone_profile_to_temp(src_user_data_dir: Path, profile_directory: str) -> Path:
@@ -84,7 +93,11 @@ def _clone_profile_to_temp(src_user_data_dir: Path, profile_directory: str) -> P
     def _ignore(dirpath, names):
         ignore_list = set()
         for n in names:
-            if n.startswith("Singleton") or n in {"Crashpad", "GrShaderCache", "ShaderCache"}:
+            if n.startswith("Singleton") or n in {
+                "Crashpad",
+                "GrShaderCache",
+                "ShaderCache",
+            }:
                 ignore_list.add(n)
             if n in {"GPUCache", "Code Cache", "Media Cache", "Application Cache"}:
                 ignore_list.add(n)
@@ -148,10 +161,13 @@ def _maybe_linux_sandbox_fixes(opts: Options):
     is_root = hasattr(os, "geteuid") and os.geteuid() == 0
     if in_container or is_root:
         opts.add_argument("--no-sandbox")
-        opts.add_argument("--disable-dev-shm-usage")  # fall back to /tmp if /dev/shm is tiny
+        opts.add_argument(
+            "--disable-dev-shm-usage"
+        )  # fall back to /tmp if /dev/shm is tiny
 
 
 # ---------- Primary API ----------
+
 
 class SeleniumBrowser:
     """
@@ -219,7 +235,6 @@ class SeleniumBrowser:
         hide_automation_banner: bool,
         chrome_prefs: Optional[dict[str, Any]],
         chrome_args: Optional[list[str]],
-
     ):
         """Setup Chrome driver with appropriate options"""
         chrome_options = Options()
@@ -245,15 +260,16 @@ class SeleniumBrowser:
             "--no-first-run",
             "--no-default-browser-check",
             "--disable-features=RestoreSession,Translate",
-
         ]
         # Let Chrome pick a free DevTools port (reduces clashes)
-   
+
         for arg in (chrome_args if chrome_args is not None else default_chrome_args):
             chrome_options.add_argument(arg)
 
         if hide_automation_banner:
-            chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+            chrome_options.add_experimental_option(
+                "excludeSwitches", ["enable-automation"]
+            )
             chrome_options.add_argument("--disable-blink-features=AutomationControlled")
 
         if headless:
@@ -268,9 +284,13 @@ class SeleniumBrowser:
             chrome_options.add_experimental_option("debuggerAddress", debugger_address)
         else:
             if use_existing_profile and not clean_profile_instead:
-                resolved_user_data_dir = Path(user_data_dir) if user_data_dir else _resolve_user_data_dir()
+                resolved_user_data_dir = (
+                    Path(user_data_dir) if user_data_dir else _resolve_user_data_dir()
+                )
                 if copy_profile_to_temp:
-                    cloned = _clone_profile_to_temp(resolved_user_data_dir, profile_directory)
+                    cloned = _clone_profile_to_temp(
+                        resolved_user_data_dir, profile_directory
+                    )
                     self._temp_profile_dir = cloned
                     # Overwrite the same prefs (download.prompt_for_download etc.)
                     # in the cloned Preferences file — chromedriver's
@@ -279,11 +299,17 @@ class SeleniumBrowser:
                     # _apply_prefs_to_cloned_profile docstring.
                     _apply_prefs_to_cloned_profile(cloned / profile_directory, prefs)
                     chrome_options.add_argument(f"--user-data-dir={cloned}")
-                    chrome_options.add_argument(f"--profile-directory={profile_directory}")
+                    chrome_options.add_argument(
+                        f"--profile-directory={profile_directory}"
+                    )
                 else:
                     # Requires that all Chrome windows using this profile are closed
-                    chrome_options.add_argument(f"--user-data-dir={resolved_user_data_dir}")
-                    chrome_options.add_argument(f"--profile-directory={profile_directory}")
+                    chrome_options.add_argument(
+                        f"--user-data-dir={resolved_user_data_dir}"
+                    )
+                    chrome_options.add_argument(
+                        f"--profile-directory={profile_directory}"
+                    )
             elif clean_profile_instead:
                 fresh = Path(tempfile.mkdtemp(prefix="selenium-empty-"))
                 self._temp_profile_dir = fresh
@@ -294,7 +320,9 @@ class SeleniumBrowser:
             for crx in crx_paths:
                 chrome_options.add_extension(crx)
         if unpacked_extension_dirs:
-            chrome_options.add_argument(f"--load-extension={','.join(unpacked_extension_dirs)}")
+            chrome_options.add_argument(
+                f"--load-extension={','.join(unpacked_extension_dirs)}"
+            )
 
         # Try to find ChromeDriver in common locations (original behavior)
         chrome_driver_paths = [
@@ -317,13 +345,19 @@ class SeleniumBrowser:
                 service = Service(driver_path)
                 self.driver = webdriver.Chrome(service=service, options=chrome_options)
             else:
-                iaalogger.warning("ChromeDriver not found in common locations, trying default PATH lookup...")
+                iaalogger.warning(
+                    "ChromeDriver not found in common locations, trying default PATH lookup..."
+                )
                 self.driver = webdriver.Chrome(options=chrome_options)
         except Exception as e:
             iaalogger.error(f"Failed to initialize Chrome driver: {e}")
-            iaalogger.error("Please ensure Chrome and ChromeDriver are installed and versions match.")
+            iaalogger.error(
+                "Please ensure Chrome and ChromeDriver are installed and versions match."
+            )
             iaalogger.error("Download ChromeDriver: https://chromedriver.chromium.org/")
-            raise WebAutomationError(f"Could not initialize Chrome driver. Error: {e}") from e
+            raise WebAutomationError(
+                f"Could not initialize Chrome driver. Error: {e}"
+            ) from e
 
         # Original implicit wait
         self.driver.implicitly_wait(10)
@@ -339,41 +373,41 @@ class SeleniumBrowser:
         Get a free port number. Try preferred port first, then find any free port.
         """
 
-        
         # Try preferred port first
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-                s.bind(('', preferred_port))
+                s.bind(("", preferred_port))
                 return preferred_port
         except OSError:
             iaalogger.debug(f"Port {preferred_port} in use, finding alternative...")
-        
+
         # Find any free port
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind(('', 0))
+            s.bind(("", 0))
             s.listen(1)
             port = s.getsockname()[1]
             iaalogger.info(f"Using free port: {port}")
             return port
 
-
     def _parse_locator(self, locator: str) -> tuple:
         """
         Parse a locator string in format "type:value" into Selenium By constant and value.
-        
+
         Args:
             locator: Locator string in format "type:value" where type can be:
                      link, partial_link, id, name, xpath, css, tag_name, class_name
-                     
+
         Returns:
             tuple: (By constant, locator value)
-            
+
         Raises:
             WebAutomationError: If locator format is invalid or type is unknown
         """
         if ":" not in locator and not locator.startswith("/"):
-            raise WebAutomationError(f"Invalid locator format (missing colon or does not start with /): {locator}")
-        
+            raise WebAutomationError(
+                f"Invalid locator format (missing colon or does not start with /): {locator}"
+            )
+
         if locator.startswith("/"):
             locator_type = "xpath"
             locator_value = locator
@@ -381,7 +415,7 @@ class SeleniumBrowser:
             locator_type, locator_value = locator.split(":", 1)
             locator_type = locator_type.strip().lower()
             locator_value = locator_value.strip()
-        
+
         # Map locator type to Selenium By constant
         by_mapping = {
             "link": By.LINK_TEXT,
@@ -393,10 +427,10 @@ class SeleniumBrowser:
             "tag_name": By.TAG_NAME,
             "class_name": By.CLASS_NAME,
         }
-        
+
         if locator_type not in by_mapping:
             raise WebAutomationError(f"Unknown locator type: {locator_type}")
-        
+
         return by_mapping[locator_type], locator_value
 
     # ----- Public API (unchanged signatures where possible) -----
@@ -404,13 +438,13 @@ class SeleniumBrowser:
     def goto(self, url: str):
         """
         Navigate to URL
-        
+
         Args:
             url: The URL to navigate to
-            
+
         Returns:
             The WebDriver instance
-            
+
         Raises:
             NavigationError: If navigation fails
         """
@@ -431,25 +465,24 @@ class SeleniumBrowser:
             os.makedirs("output", exist_ok=True)
             self.driver.save_screenshot(f"output/screenshot_{timestamp}.png")
 
-
     def send_keys_to_active_element(self, keys: str):
         """
         Send keys to the currently active element.
-        
+
         Args:
             keys: The keys to send to the active element
         """
         active_element = self.driver.switch_to.active_element
         active_element.send_keys(keys)
         iaalogger.debug(f"Sent keys to active element: {keys}")
-    
+
     def press_tab(self):
         """
         Press the Tab key.
         """
         self.send_keys_to_active_element("Tab")
         iaalogger.debug("Pressed Tab key")
-    
+
     def press_enter(self):
         """
         Press the Enter key.
@@ -460,15 +493,15 @@ class SeleniumBrowser:
     def does_page_contain_element(self, locator: str, timeout: int = 5) -> bool:
         """
         Check if an element is present on the page within the specified timeout.
-        
+
         Args:
             locator: Locator string in format "type:value" where type can be:
                      link, partial_link, id, name, xpath, css, tag_name, class_name
             timeout: Timeout in seconds (default: 5)
-            
+
         Returns:
             bool: True if element is found, False otherwise
-            
+
         Example:
             browser.does_page_contain_element("link:View company details")
             browser.does_page_contain_element("id:submit-button", timeout=10)
@@ -476,17 +509,17 @@ class SeleniumBrowser:
         try:
             # Parse locator string using helper method
             by_type, locator_value = self._parse_locator(locator)
-            
+
             iaalogger.debug(f"Checking for element: {locator} (timeout: {timeout}s)")
-            
+
             # Wait for element to be present
             WebDriverWait(self.driver, timeout).until(
                 EC.presence_of_element_located((by_type, locator_value))
             )
-            
+
             iaalogger.debug(f"Element found: {locator}")
             return True
-            
+
         except TimeoutException:
             iaalogger.debug(f"Element not found within {timeout}s: {locator}")
             return False
@@ -500,13 +533,13 @@ class SeleniumBrowser:
     def get_page_source(self) -> str:
         """
         Get the HTML source of the current page.
-        
+
         Returns:
             str: The HTML source code of the current page
-            
+
         Raises:
             WebAutomationError: If unable to retrieve page source
-            
+
         Example:
             browser.goto("https://example.com")
             html = browser.get_page_source()
@@ -522,14 +555,14 @@ class SeleniumBrowser:
     def execute_javascript(self, script: str, *args):
         """
         Execute JavaScript code in the browser.
-        
+
         Args:
             script: JavaScript code to execute
             *args: Optional arguments to pass to the script
-            
+
         Returns:
             The result of the JavaScript execution
-            
+
         Example:
             browser.execute_javascript("return document.title;")
             browser.execute_javascript("arguments[0].click();", element)
@@ -576,9 +609,7 @@ class SeleniumBrowser:
             self.driver.switch_to.window(handle)
             iaalogger.debug(f"Switched to handle: {handle}")
             return True
-        iaalogger.warning(
-            f"Requested handle {handle} not present in current handles."
-        )
+        iaalogger.warning(f"Requested handle {handle} not present in current handles.")
         return False
 
     def close_current_and_switch(
@@ -635,10 +666,10 @@ class SeleniumBrowser:
     def get_window_handles(self):
         """
         Get all window handles.
-        
+
         Returns:
             list: List of window handle strings
-            
+
         Example:
             handles = browser.get_window_handles()
             browser.switch_to_window(handles[-1])
@@ -654,10 +685,10 @@ class SeleniumBrowser:
     def switch_to_window(self, window_handle: str):
         """
         Switch to a different browser window/tab.
-        
+
         Args:
             window_handle: The window handle to switch to
-            
+
         Example:
             handles = browser.get_window_handles()
             browser.switch_to_window(handles[-1])  # Switch to last opened window
@@ -669,19 +700,20 @@ class SeleniumBrowser:
             iaalogger.error(f"Failed to switch to window {window_handle}: {e}")
             raise WebAutomationError(f"Could not switch to window: {e}") from e
 
-
     def wait_for_element(self, locator, timeout=DEFAULT_ELEMENT_TIMEOUT):
         """Wait for element to be present and visible"""
         try:
             by_type, locator_value = self._parse_locator(locator)
             wait = WebDriverWait(self.driver, timeout)
-            element = wait.until(EC.visibility_of_element_located((by_type, locator_value)))
+            element = wait.until(
+                EC.visibility_of_element_located((by_type, locator_value))
+            )
             return element
         except TimeoutException:
             iaalogger.error(f"Element not found within {timeout}s: {locator}")
             raise
-    
-    def wait_for_element_clickable(self, locator,  timeout=DEFAULT_ELEMENT_TIMEOUT):
+
+    def wait_for_element_clickable(self, locator, timeout=DEFAULT_ELEMENT_TIMEOUT):
         """Wait for element to be clickable"""
         try:
             by_type, locator_value = self._parse_locator(locator)
@@ -692,23 +724,18 @@ class SeleniumBrowser:
             iaalogger.error(f"Element not clickable within {timeout}s: {locator}")
             raise
 
-
-
-
-
-
     def click_element(self, locator: str, timeout: int = DEFAULT_ELEMENT_TIMEOUT):
         """
         Click an element using locator string.
-        
+
         Args:
             locator: Locator string in format "type:value" where type can be:
                      link, partial_link, id, name, xpath, css, tag_name, class_name
             timeout: Timeout in seconds (default: 30)
-            
+
         Raises:
             ElementNotFoundError: If element cannot be found or clicked
-            
+
         Example:
             browser.click_element("id:submit-button")
             browser.click_element("xpath://button[@type='submit']")
@@ -716,15 +743,15 @@ class SeleniumBrowser:
         try:
             # Parse locator string
             by_type, locator_value = self._parse_locator(locator)
-            
+
             # Wait for element to be present
             element = WebDriverWait(self.driver, timeout).until(
                 EC.presence_of_element_located((by_type, locator_value))
             )
-            
+
             # Use safe_click helper for robust clicking
             safe_click(self.driver, element, locator)
-            
+
         except TimeoutException:
             iaalogger.error(f"Element not found within {timeout}s: {locator}")
             raise ElementNotFoundError(f"Element not found: {locator}") from None
@@ -734,30 +761,35 @@ class SeleniumBrowser:
             iaalogger.error(f"Failed to click element {locator}: {e}")
             raise ElementNotFoundError(f"Could not click element {locator}: {e}") from e
 
-
     def click_link(self, link_text: str, timeout: int = DEFAULT_ELEMENT_TIMEOUT):
         """
         Click a link by text.
-        
+
         Args:
             link_text: The text of the link to click
             timeout: Timeout in seconds (default: 30)
         """
         return self.click_element(f"link:{link_text}", timeout=timeout)
 
-    def type_text(self, locator: str, text: str, timeout: int = DEFAULT_ELEMENT_TIMEOUT, clear_first: bool = True):
+    def type_text(
+        self,
+        locator: str,
+        text: str,
+        timeout: int = DEFAULT_ELEMENT_TIMEOUT,
+        clear_first: bool = True,
+    ):
         """
         Type text into an element.
-        
+
         Args:
             locator: Locator string in format "type:value" where type can be:
                      link, partial_link, id, name, xpath, css, tag_name, class_name
             text: Text to type into the element
             timeout: Timeout in seconds (default: 30)
-            
+
         Raises:
             ElementNotFoundError: If element cannot be found
-            
+
         Example:
             browser.type_text("id:username", "myuser")
             browser.type_text("name:search-box", "query text")
@@ -765,18 +797,18 @@ class SeleniumBrowser:
         try:
             # Parse locator string
             by_type, locator_value = self._parse_locator(locator)
-            
+
             # Wait for element to be present
             element = WebDriverWait(self.driver, timeout).until(
                 EC.presence_of_element_located((by_type, locator_value))
             )
-            
+
             # Clear existing content and type new text
             if clear_first:
                 element.clear()
             element.send_keys(text)
             iaalogger.info(f"Typed text into element: {locator}")
-            
+
         except TimeoutException:
             iaalogger.error(f"Element not found within {timeout}s: {locator}")
             raise ElementNotFoundError(f"Element not found: {locator}") from None
@@ -784,21 +816,25 @@ class SeleniumBrowser:
             raise  # Re-raise parsing errors
         except Exception as e:
             iaalogger.error(f"Failed to type text into element {locator}: {e}")
-            raise ElementNotFoundError(f"Could not type into element {locator}: {e}") from e
+            raise ElementNotFoundError(
+                f"Could not type into element {locator}: {e}"
+            ) from e
 
-    def select_dropdown_by_text(self, locator: str, visible_text: str, timeout: int = DEFAULT_ELEMENT_TIMEOUT):
+    def select_dropdown_by_text(
+        self, locator: str, visible_text: str, timeout: int = DEFAULT_ELEMENT_TIMEOUT
+    ):
         """
         Select a dropdown option by visible text.
-        
+
         Args:
             locator: Locator string in format "type:value" where type can be:
                      link, partial_link, id, name, xpath, css, tag_name, class_name
             visible_text: The visible text of the option to select
             timeout: Timeout in seconds (default: 30)
-            
+
         Raises:
             ElementNotFoundError: If dropdown or option cannot be found
-            
+
         Example:
             browser.select_dropdown_by_text("id:country", "United States")
             browser.select_dropdown_by_text("name:user-type", "Registered agents")
@@ -806,34 +842,37 @@ class SeleniumBrowser:
         try:
             # Parse locator string
             by_type, locator_value = self._parse_locator(locator)
-            
+
             # Wait for element to be present
             element = WebDriverWait(self.driver, timeout).until(
                 EC.presence_of_element_located((by_type, locator_value))
             )
-            
+
             # Create Select object and select by visible text
             select = Select(element)
             select.select_by_visible_text(visible_text)
             iaalogger.info(f"Selected '{visible_text}' from dropdown: {locator}")
-            
+
         except TimeoutException:
             iaalogger.error(f"Dropdown not found within {timeout}s: {locator}")
             raise ElementNotFoundError(f"Dropdown not found: {locator}") from None
         except WebAutomationError:
             raise  # Re-raise parsing errors
         except Exception as e:
-            iaalogger.error(f"Failed to select option '{visible_text}' from dropdown {locator}: {e}")
+            iaalogger.error(
+                f"Failed to select option '{visible_text}' from dropdown {locator}: {e}"
+            )
             raise ElementNotFoundError(f"Could not select dropdown option: {e}") from e
-
 
     def generate_pdf(self):
         """
         Generate a PDF of the current page.
         """
         try:
-            result = self.driver.execute_cdp_cmd("Page.printToPDF", {"printBackground": True})
-            pdf_data = base64.b64decode(result['data'])
+            result = self.driver.execute_cdp_cmd(
+                "Page.printToPDF", {"printBackground": True}
+            )
+            pdf_data = base64.b64decode(result["data"])
             iaalogger.info("Generated PDF successfully")
             return pdf_data
         except Exception as e:
@@ -851,5 +890,7 @@ class SeleniumBrowser:
                 try:
                     shutil.rmtree(self._temp_profile_dir, ignore_errors=True)
                 except Exception as e:
-                    iaalogger.warning(f"Could not remove temp profile dir {self._temp_profile_dir}: {e}")
+                    iaalogger.warning(
+                        f"Could not remove temp profile dir {self._temp_profile_dir}: {e}"
+                    )
             self._temp_profile_dir = None

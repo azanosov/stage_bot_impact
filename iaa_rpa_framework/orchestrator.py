@@ -12,7 +12,7 @@ from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.backends import default_backend
 
 # Windows-specific imports for named pipe communication
-if sys.platform == 'win32':
+if sys.platform == "win32":
     import win32file
     import win32con
     import win32pipe
@@ -35,15 +35,17 @@ if sys.platform == 'win32':
 logger = logging.getLogger(__name__)
 
 # Default token pipe name - must match the one in task_executor.py
-DEFAULT_TOKEN_PIPE_NAME = r'\\.\pipe\iaa_rpa_token_pipe'
+DEFAULT_TOKEN_PIPE_NAME = r"\\.\pipe\iaa_rpa_token_pipe"
 
 # HTTP session with headers for Cloudflare WAF compatibility
 _http_session = requests.Session()
-_http_session.headers.update({
-    "User-Agent": "IAARPAFramework/1.0",
-    "Accept": "*/*",
-    "Accept-Language": "en-US,en;q=0.9",
-})
+_http_session.headers.update(
+    {
+        "User-Agent": "IAARPAFramework/1.0",
+        "Accept": "*/*",
+        "Accept-Language": "en-US,en;q=0.9",
+    }
+)
 
 
 class TokenProvider:
@@ -51,6 +53,7 @@ class TokenProvider:
     Manages token acquisition via named pipe communication with the Agent.
     Caches the token and refreshes it when authentication errors occur.
     """
+
     def __init__(self, pipe_name: str, job_id: str):
         """
         Args:
@@ -87,7 +90,7 @@ class TokenProvider:
         """
         Fetch a fresh token from the Agent via named pipe.
         """
-        if sys.platform != 'win32':
+        if sys.platform != "win32":
             raise RuntimeError("Token pipe communication is only supported on Windows")
 
         try:
@@ -106,27 +109,24 @@ class TokenProvider:
                 None,
                 win32con.OPEN_EXISTING,
                 0,
-                None
+                None,
             )
 
             try:
                 # Send token request
-                request = {
-                    'command': 'get_token',
-                    'job_id': self.job_id
-                }
-                win32file.WriteFile(pipe_handle, json.dumps(request).encode('utf-8'))
+                request = {"command": "get_token", "job_id": self.job_id}
+                win32file.WriteFile(pipe_handle, json.dumps(request).encode("utf-8"))
 
                 # Read response
                 _, data = win32file.ReadFile(pipe_handle, 4096)
-                response = json.loads(data.decode('utf-8'))
+                response = json.loads(data.decode("utf-8"))
 
-                if response.get('success'):
-                    token = response.get('token')
+                if response.get("success"):
+                    token = response.get("token")
                     logger.debug("Token obtained successfully via pipe")
                     return token
                 else:
-                    error = response.get('error', 'Unknown error')
+                    error = response.get("error", "Unknown error")
                     logger.error(f"Failed to get token: {error}")
                     raise RuntimeError(f"Failed to get token from pipe: {error}")
 
@@ -137,8 +137,11 @@ class TokenProvider:
             logger.error(f"Pipe communication error: {e}")
             raise RuntimeError(f"Pipe communication error: {e}") from e
 
+
 class RenderedEmailResponse:
-    def __init__(self, to: list[str], cc: list[str], bcc: list[str], subject: str, body: str):
+    def __init__(
+        self, to: list[str], cc: list[str], bcc: list[str], subject: str, body: str
+    ):
         self.to = to
         self.cc = cc
         self.bcc = bcc
@@ -155,7 +158,8 @@ class RenderedEmailResponse:
             body=data.get("body", ""),
         )
 
-class Orchestrator():
+
+class Orchestrator:
 
     def __init__(self, orchestrator_url: str, job_id: str):
         """
@@ -167,7 +171,9 @@ class Orchestrator():
         """
         self.url = orchestrator_url
         self._token_provider = TokenProvider(DEFAULT_TOKEN_PIPE_NAME, job_id)
-        logger.info(f"Orchestrator initialized with token pipe: {DEFAULT_TOKEN_PIPE_NAME}")
+        logger.info(
+            f"Orchestrator initialized with token pipe: {DEFAULT_TOKEN_PIPE_NAME}"
+        )
         logger.info(f"Orchestrator Service Initialized")
         super().__init__()
 
@@ -202,7 +208,7 @@ class Orchestrator():
         Returns True if the agent has signalled a cancel for this job, False otherwise.
         Returns False silently on any pipe error so normal processing is never disrupted.
         """
-        if sys.platform != 'win32':
+        if sys.platform != "win32":
             return False
 
         pipe_name = self._token_provider.pipe_name
@@ -219,15 +225,15 @@ class Orchestrator():
                 None,
                 win32con.OPEN_EXISTING,
                 0,
-                None
+                None,
             )
 
             try:
-                request = {'command': 'check_cancel', 'job_id': job_id}
-                win32file.WriteFile(pipe_handle, json.dumps(request).encode('utf-8'))
+                request = {"command": "check_cancel", "job_id": job_id}
+                win32file.WriteFile(pipe_handle, json.dumps(request).encode("utf-8"))
                 _, data = win32file.ReadFile(pipe_handle, 4096)
-                response = json.loads(data.decode('utf-8'))
-                return bool(response.get('cancel_requested', False))
+                response = json.loads(data.decode("utf-8"))
+                return bool(response.get("cancel_requested", False))
             finally:
                 win32file.CloseHandle(pipe_handle)
 
@@ -235,7 +241,7 @@ class Orchestrator():
             logger.debug(f"check_cancel_signal pipe error (ignored): {e}")
             return False
 
-# Config APIs
+    # Config APIs
     def get_config_for_job(self, job_id):
         """
         Retrieve the runtime configuration for a specific job.
@@ -257,14 +263,14 @@ class Orchestrator():
         logger.info("Calling API: " + url)
 
         def make_request():
-            headers = {'Authorization': f'Bearer {self.token}'}
+            headers = {"Authorization": f"Bearer {self.token}"}
             return _http_session.get(url, headers=headers)
 
         response = self._refresh_token_and_retry(make_request)
         if response.status_code == 200:
-            if response.content[:2] == b'\x1f\x8b':
+            if response.content[:2] == b"\x1f\x8b":
                 logger.debug("Response is gzip-compressed, decompressing...")
-                config = json.loads(gzip.decompress(response.content).decode('utf-8'))
+                config = json.loads(gzip.decompress(response.content).decode("utf-8"))
             else:
                 logger.debug(f"Response is JSON...")
                 config = response.json()
@@ -274,7 +280,7 @@ class Orchestrator():
             raise Exception(f"Failed to get config: {response.status_code}")
         return config
 
-# Queue APIs
+    # Queue APIs
 
     # Gets the next queue item using the queue assigned to the automation
     def get_queue_items(self, filter):
@@ -312,8 +318,8 @@ class Orchestrator():
 
         def make_request():
             headers = {
-                'Authorization': f'Bearer {self.token}',
-                'Content-Type': 'application/json'
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
             }
             return _http_session.post(url, headers=headers, json=filter)
 
@@ -324,11 +330,15 @@ class Orchestrator():
         elif response.status_code == 404:
             logger.info(f"No pending items found in the queue or queue does not exist.")
         else:
-            logger.error(f"Failed to retrieve the next item. Status code: {response.status_code}, Error: {response.text}")
+            logger.error(
+                f"Failed to retrieve the next item. Status code: {response.status_code}, Error: {response.text}"
+            )
 
         return None
 
-    def get_queue_items_by_job(self, job_id: str, filter: Optional[dict] = None, redact: bool = True):
+    def get_queue_items_by_job(
+        self, job_id: str, filter: Optional[dict] = None, redact: bool = True
+    ):
         """
         Retrieve items from the queue associated with a job.
 
@@ -351,8 +361,8 @@ class Orchestrator():
 
         def make_request():
             headers = {
-                'Authorization': f'Bearer {self.token}',
-                'Content-Type': 'application/json'
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
             }
             return _http_session.post(url, headers=headers, json=body)
 
@@ -363,11 +373,15 @@ class Orchestrator():
         elif response.status_code == 404:
             logger.info("No items found or queue does not exist.")
         else:
-            logger.error(f"Failed to retrieve items. Status code: {response.status_code}, Error: {response.text}")
+            logger.error(
+                f"Failed to retrieve items. Status code: {response.status_code}, Error: {response.text}"
+            )
 
         return None
 
-    def get_queue_items_by_queue_name(self, queue_name: str, filter: Optional[dict] = None, redact: bool = True):
+    def get_queue_items_by_queue_name(
+        self, queue_name: str, filter: Optional[dict] = None, redact: bool = True
+    ):
         """
         Retrieve items from a named queue.
 
@@ -390,8 +404,8 @@ class Orchestrator():
 
         def make_request():
             headers = {
-                'Authorization': f'Bearer {self.token}',
-                'Content-Type': 'application/json'
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
             }
             return _http_session.post(url, headers=headers, json=body)
 
@@ -400,9 +414,13 @@ class Orchestrator():
         if response.status_code == 200:
             return response.json()
         elif response.status_code == 404:
-            logger.info(f"No items found in queue '{queue_name}' or queue does not exist.")
+            logger.info(
+                f"No items found in queue '{queue_name}' or queue does not exist."
+            )
         else:
-            logger.error(f"Failed to retrieve items. Status code: {response.status_code}, Error: {response.text}")
+            logger.error(
+                f"Failed to retrieve items. Status code: {response.status_code}, Error: {response.text}"
+            )
 
         return None
 
@@ -423,8 +441,8 @@ class Orchestrator():
 
         def make_request():
             headers = {
-                'Authorization': f'Bearer {self.token}',
-                'Content-Type': 'application/json'
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
             }
             return _http_session.get(url, headers=headers)
 
@@ -435,7 +453,9 @@ class Orchestrator():
         elif response.status_code == 404:
             logger.info(f"No pending items found in the queue or queue does not exist.")
         else:
-            logger.error(f"Failed to retrieve the next item. Status code: {response.status_code}, Error: {response.text}")
+            logger.error(
+                f"Failed to retrieve the next item. Status code: {response.status_code}, Error: {response.text}"
+            )
         return None
 
     # Gets the next queue item using the queue assigned to the automation
@@ -458,8 +478,8 @@ class Orchestrator():
 
         def make_request():
             headers = {
-                'Authorization': f'Bearer {self.token}',
-                'Content-Type': 'application/json'
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
             }
             return _http_session.get(url, headers=headers)
 
@@ -470,10 +490,12 @@ class Orchestrator():
         elif response.status_code == 404:
             logger.info(f"No pending items found in the queue or queue does not exist.")
         else:
-            logger.error(f"Failed to retrieve the next item. Status code: {response.status_code}, Error: {response.text}")
+            logger.error(
+                f"Failed to retrieve the next item. Status code: {response.status_code}, Error: {response.text}"
+            )
 
-        return None 
-    
+        return None
+
     def get_queue_item_count_by_queue_name(self, queue_name):
         """
         Retrieve the number of pending items in a named queue.
@@ -491,8 +513,8 @@ class Orchestrator():
 
         def make_request():
             headers = {
-                'Authorization': f'Bearer {self.token}',
-                'Content-Type': 'application/json'
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
             }
             return _http_session.get(url, headers=headers)
 
@@ -501,12 +523,16 @@ class Orchestrator():
         if response.status_code == 200:
             return response.json()
         elif response.status_code == 404:
-            logger.info(f"No pending items found in the queue '{queue_name}' or queue does not exist.")
+            logger.info(
+                f"No pending items found in the queue '{queue_name}' or queue does not exist."
+            )
         else:
-            logger.error(f"Failed to retrieve the next item. Status code: {response.status_code}, Error: {response.text}")
+            logger.error(
+                f"Failed to retrieve the next item. Status code: {response.status_code}, Error: {response.text}"
+            )
 
         return None
-    
+
     def get_next_item_by_queue_name(self, queue_name):
         """
         Retrieve the next pending item from a named queue.
@@ -527,8 +553,8 @@ class Orchestrator():
 
         def make_request():
             headers = {
-                'Authorization': f'Bearer {self.token}',
-                'Content-Type': 'application/json'
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
             }
             return _http_session.get(url, headers=headers)
 
@@ -537,11 +563,15 @@ class Orchestrator():
         if response.status_code == 200:
             return response.json()
         elif response.status_code == 404:
-            logger.info(f"No pending items found in the queue '{queue_name}' or queue does not exist.")
+            logger.info(
+                f"No pending items found in the queue '{queue_name}' or queue does not exist."
+            )
         else:
-            logger.error(f"Failed to retrieve the next item. Status code: {response.status_code}, Error: {response.text}")
+            logger.error(
+                f"Failed to retrieve the next item. Status code: {response.status_code}, Error: {response.text}"
+            )
 
-        return None 
+        return None
 
     def put_item_by_job(self, job_id, item_id, item):
         """
@@ -559,15 +589,12 @@ class Orchestrator():
             dict: The created queue item, or None if the queue does not exist.
         """
         url = f"{self.url}/robot_data_items/by_job/{job_id}"
-        data = {
-            "name": item_id,
-            "data_fields": item
-        }
+        data = {"name": item_id, "data_fields": item}
 
         def make_request():
             headers = {
-                'Authorization': f'Bearer {self.token}',
-                'Content-Type': 'application/json'
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
             }
             return _http_session.post(url, headers=headers, data=json.dumps(data))
 
@@ -578,9 +605,11 @@ class Orchestrator():
         elif response.status_code == 404:
             logger.info(f"Queue does not exist.")
         else:
-            logger.error(f"Failed to populate the item. Status code: {response.status_code}, Error: {response.text}")
+            logger.error(
+                f"Failed to populate the item. Status code: {response.status_code}, Error: {response.text}"
+            )
 
-        return None 
+        return None
 
     def put_item_by_queue_name(self, queue_name, item_id, item):
         """
@@ -598,15 +627,12 @@ class Orchestrator():
             dict: The created queue item, or None if the queue does not exist.
         """
         url = f"{self.url}/robot_data_items/by_name/{queue_name}"
-        data = {
-            "name": item_id,
-            "data_fields": item
-        }
+        data = {"name": item_id, "data_fields": item}
 
         def make_request():
             headers = {
-                'Authorization': f'Bearer {self.token}',
-                'Content-Type': 'application/json'
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
             }
             return _http_session.post(url, headers=headers, data=json.dumps(data))
 
@@ -617,9 +643,11 @@ class Orchestrator():
         elif response.status_code == 404:
             logger.info(f"Queue '{queue_name}' does not exist.")
         else:
-            logger.error(f"Failed to populate the item. Status code: {response.status_code}, Error: {response.text}")
+            logger.error(
+                f"Failed to populate the item. Status code: {response.status_code}, Error: {response.text}"
+            )
 
-        return None 
+        return None
 
     def update_data_queue_item(self, item: dict) -> bool:
         """
@@ -638,25 +666,29 @@ class Orchestrator():
         """
         logger.info("---Updating Queue Item---")
 
-        item_id = item['id']
+        item_id = item["id"]
         url = f"{self.url}/robot_data_items/{item_id}"
 
         def make_request():
             headers = {
-                'Authorization': f'Bearer {self.token}',
-                'Content-Type': 'application/json'
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
             }
             return _http_session.put(url, headers=headers, json=item)
 
         response = self._refresh_token_and_retry(make_request)
 
         if response.status_code == 200:
-            logger.debug(f"Item updated successfully. Item ID: {item_id}, Status code: {response.status_code}")
+            logger.debug(
+                f"Item updated successfully. Item ID: {item_id}, Status code: {response.status_code}"
+            )
             return True
         else:
-            logger.error(f"Failed to update the Item ID: {item_id}. Status code: {response.status_code}, Error: {response.text}")
+            logger.error(
+                f"Failed to update the Item ID: {item_id}. Status code: {response.status_code}, Error: {response.text}"
+            )
             return False
-    
+
     def get_config_table(self, tablename: str) -> ConfigTable | None:
         """
         Retrieve a named configuration table from the portal.
@@ -678,8 +710,8 @@ class Orchestrator():
 
         def make_request():
             headers = {
-                'Authorization': f'Bearer {self.token}',
-                'Content-Type': 'application/json'
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
             }
             return _http_session.get(url, headers=headers)
 
@@ -698,12 +730,13 @@ class Orchestrator():
         elif response.status_code == 404:
             logger.info(f"Config table not found")
         else:
-            logger.error(f"Failed to retrieve the config table: {response.status_code}, Error: {response.text}")
+            logger.error(
+                f"Failed to retrieve the config table: {response.status_code}, Error: {response.text}"
+            )
 
-        return None 
+        return None
 
-
-# Asset APIs
+    # Asset APIs
 
     def get_asset(self, asset_name: str, private_key_file: str):
         """
@@ -732,19 +765,21 @@ class Orchestrator():
 
         def make_request():
             headers = {
-                'Authorization': f'Bearer {self.token}',
-                'Content-Type': 'application/json'
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
             }
             return _http_session.get(url, headers=headers)
 
         response = self._refresh_token_and_retry(make_request)
 
         if response.status_code != 200:
-            raise Exception(f"Failed to retrieve the asset. Status code: {response.status_code}, Error: {response.text}")
+            raise Exception(
+                f"Failed to retrieve the asset. Status code: {response.status_code}, Error: {response.text}"
+            )
 
         return self._decrypt_asset(response.json()["value"], private_key_file)
 
-    def _decrypt_asset(self, encrypted_asset_hex:str, private_key_file:str) -> str:
+    def _decrypt_asset(self, encrypted_asset_hex: str, private_key_file: str) -> str:
 
         encrypted_asset = base64.b64decode(encrypted_asset_hex)
 
@@ -752,31 +787,28 @@ class Orchestrator():
             private_key_pem = key_file.read()
 
             private_key = serialization.load_pem_private_key(
-            private_key_pem,
-            password=None,
-            backend=default_backend()
+                private_key_pem, password=None, backend=default_backend()
             )
 
             # Decrypt the asset
             decrypted_asset = private_key.decrypt(
-            encrypted_asset,
-            padding.OAEP(
-                mgf=padding.MGF1(algorithm=hashes.SHA256()),
-                algorithm=hashes.SHA256(),
-                label=None
-                )
+                encrypted_asset,
+                padding.OAEP(
+                    mgf=padding.MGF1(algorithm=hashes.SHA256()),
+                    algorithm=hashes.SHA256(),
+                    label=None,
+                ),
             )
 
             return decrypted_asset.decode()
 
-
-
-    def finish_job(self,
+    def finish_job(
+        self,
         job_id: str,
         total_records_processed: int,
         success_records: int,
-        exception_records: int):
-
+        exception_records: int,
+    ):
         """
         Report the outcome of a completed job back to the portal.
 
@@ -800,23 +832,25 @@ class Orchestrator():
 
         # Prepare request payload
         json_data = {
-            'record_processed': total_records_processed,
-            'record_success': success_records,
-            'record_failed': exception_records
+            "record_processed": total_records_processed,
+            "record_success": success_records,
+            "record_failed": exception_records,
         }
         url = f"{self.url}/job/result/{job_id}"
 
         def make_request():
             headers = {
-                'Authorization': f'Bearer {self.token}',
-                'Content-Type': 'application/json'
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
             }
             return _http_session.put(url, json=json_data, headers=headers, timeout=30.0)
 
         try:
             response = self._refresh_token_and_retry(make_request)
 
-            logging.info(f"IA Portal --> AddProcessTransaction --> End Time: {datetime.now()}")
+            logging.info(
+                f"IA Portal --> AddProcessTransaction --> End Time: {datetime.now()}"
+            )
 
             return response.text, response.status_code
 
@@ -824,8 +858,6 @@ class Orchestrator():
             print(f"Error making HTTP request: {str(e)}")
             logging.error(f"Error making HTTP request: {str(e)}")
             raise
-
-
 
     def get_credits(self):
         """
@@ -845,7 +877,7 @@ class Orchestrator():
         logger.info("Calling API: " + url)
 
         def make_request():
-            headers = {'Authorization': f'Bearer {self.token}'}
+            headers = {"Authorization": f"Bearer {self.token}"}
             return _http_session.get(url, headers=headers, timeout=120.0)
 
         response = self._refresh_token_and_retry(make_request)
@@ -858,8 +890,15 @@ class Orchestrator():
             raise Exception(f"Failed to get credits: {response.status_code}")
         return credits
 
-
-    def send_email_template(self, template: str, to: str = None, cc: str = None, bcc: str = None, params: dict[str, any] = None, attachments: list[str] = None):
+    def send_email_template(
+        self,
+        template: str,
+        to: str = None,
+        cc: str = None,
+        bcc: str = None,
+        params: dict[str, any] = None,
+        attachments: list[str] = None,
+    ):
         """
         Send an email from the orchestrator/portal using an Email Template Asset.
 
@@ -891,9 +930,7 @@ class Orchestrator():
         import os as _os
 
         # Build request body - only include fields that are provided
-        body = {
-            "template": template
-        }
+        body = {"template": template}
         if to is not None:
             body["to"] = to
         if cc is not None:
@@ -907,24 +944,28 @@ class Orchestrator():
             for file in attachments:
                 with open(file, "rb") as f:
                     content_base64 = base64.b64encode(f.read()).decode("utf-8")
-                body["attachments"].append({
-                    "filename": _os.path.basename(file),
-                    "content_base64": content_base64
-                })
+                body["attachments"].append(
+                    {
+                        "filename": _os.path.basename(file),
+                        "content_base64": content_base64,
+                    }
+                )
 
         url = f"{self.url}/email_template/"
 
         def make_request():
             headers = {
-                'Authorization': f'Bearer {self.token}',
-                'Content-Type': 'application/json'
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
             }
             return _http_session.post(url, json=body, headers=headers, timeout=30.0)
 
         try:
             response = self._refresh_token_and_retry(make_request)
 
-            logging.info(f"IA Portal --> send_email_template --> End Time: {datetime.now()}")
+            logging.info(
+                f"IA Portal --> send_email_template --> End Time: {datetime.now()}"
+            )
 
             response.raise_for_status()
 
@@ -935,7 +976,14 @@ class Orchestrator():
             logging.error(f"Error making HTTP request: {str(e)}")
             raise
 
-    def render_email_template(self, template: str, to: str = None, cc: str = None, bcc: str = None, params: dict[str, any] = None) -> RenderedEmailResponse:
+    def render_email_template(
+        self,
+        template: str,
+        to: str = None,
+        cc: str = None,
+        bcc: str = None,
+        params: dict[str, any] = None,
+    ) -> RenderedEmailResponse:
         """
         Render an email template and return the processed email object without sending it.
 
@@ -963,8 +1011,8 @@ class Orchestrator():
 
         def make_request():
             headers = {
-                'Authorization': f'Bearer {self.token}',
-                'Content-Type': 'application/json'
+                "Authorization": f"Bearer {self.token}",
+                "Content-Type": "application/json",
             }
             return _http_session.post(url, json=body, headers=headers, timeout=30.0)
 
@@ -993,11 +1041,12 @@ class Orchestrator():
 
         def make_request():
             files = [
-                ('file', ('robot.zip', open(robot_package_path, 'rb'), 'application/zip'))
+                (
+                    "file",
+                    ("robot.zip", open(robot_package_path, "rb"), "application/zip"),
+                )
             ]
-            headers = {
-                'Authorization': f'Bearer {self.token}'
-            }
+            headers = {"Authorization": f"Bearer {self.token}"}
             return _http_session.post(url, headers=headers, data={}, files=files)
 
         response = self._refresh_token_and_retry(make_request)

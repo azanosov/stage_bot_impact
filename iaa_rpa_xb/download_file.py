@@ -14,7 +14,9 @@ from .take_screenshot import take_screenshot
 logger = setup_logger(__name__)
 
 _DEFAULT_UPDATE_XPATH = "//button[@type='button' and normalize-space(text())='Update']"
-_LEGACY_UPDATE_XPATH = "//a[normalize-space(text())='Update' and contains(@onclick,'UpdateReport')]"
+_LEGACY_UPDATE_XPATH = (
+    "//a[normalize-space(text())='Update' and contains(@onclick,'UpdateReport')]"
+)
 _DEFAULT_EXPORT_XPATH = "//button[@type='button' and normalize-space(text())='Export']"
 _LEGACY_EXPORT_XPATH = "//span[@class='words' and normalize-space(text())='Export']"
 _DEFAULT_FORMAT_XPATHS = {
@@ -118,22 +120,34 @@ def generate_and_export_report(
     elif helper.element_exists(driver, _LEGACY_EXPORT_XPATH, timeout=5):
         export_xpath = _LEGACY_EXPORT_XPATH
     else:
-        logger.warning("Export button not found — no report data available for this client")
+        logger.warning(
+            "Export button not found — no report data available for this client"
+        )
         raise Exception("No report data available for this client.")
 
     for ext in extensions:
         logger.info(f"Exporting as {ext}...")
         helper.click_element(driver, export_xpath)
 
-        default_format_xpath = _DEFAULT_FORMAT_XPATHS.get(ext, _DEFAULT_FORMAT_XPATHS[".xlsx"])
-        legacy_format_xpath = _LEGACY_FORMAT_XPATHS.get(ext, _LEGACY_FORMAT_XPATHS[".xlsx"])
-        format_xpath = default_format_xpath if helper.element_exists(driver, default_format_xpath, timeout=5) else legacy_format_xpath
+        default_format_xpath = _DEFAULT_FORMAT_XPATHS.get(
+            ext, _DEFAULT_FORMAT_XPATHS[".xlsx"]
+        )
+        legacy_format_xpath = _LEGACY_FORMAT_XPATHS.get(
+            ext, _LEGACY_FORMAT_XPATHS[".xlsx"]
+        )
+        format_xpath = (
+            default_format_xpath
+            if helper.element_exists(driver, default_format_xpath, timeout=5)
+            else legacy_format_xpath
+        )
         helper.click_element(driver, format_xpath)
 
         time.sleep(3)
 
         logger.info(f"Saving report to: {download_directory}")
         download_file(window_title, download_directory, report_file_name, ext)
-        logger.info(f"Report saved as '{report_file_name}{ext}' in '{download_directory}'")
+        logger.info(
+            f"Report saved as '{report_file_name}{ext}' in '{download_directory}'"
+        )
 
     return screenshot_file_path

@@ -77,7 +77,6 @@ from iaa_rpa_utils.exceptions import (
 from . import common
 from . import config
 
-
 logger = setup_logger(__name__)
 
 
@@ -133,7 +132,7 @@ def xero_blue_login(
     with ProcessLogger("Xero Blue Login", logger):
         logger.info(f"Xero Blue URL: {xero_blue_url}")
         logger.info(f"Payroll URL: {payroll_url}")
-        logger.info(f"Email: {email}")   # email only; never password/otp
+        logger.info(f"Email: {email}")  # email only; never password/otp
 
         logger.info("STEP 1: Ensuring the browser is on the login page...")
         open_login_page(browser, xero_blue_url, payroll_url)
@@ -172,15 +171,19 @@ def open_login_page(browser, xero_blue_url: str, payroll_url: str) -> None:
 def enter_credentials(browser, email: str, password: str) -> None:
     """Enter email + password and submit. If the email field never appears the
     login page did not load - that is a NavigationError."""
-    if not browser.does_page_contain_element(config.LOGIN_EMAIL_INPUT, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
+    if not browser.does_page_contain_element(
+        config.LOGIN_EMAIL_INPUT, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    ):
         raise NavigationError("Login form did not appear (email field not found)")
 
     common.clear_and_type(browser, config.LOGIN_EMAIL_INPUT, email)
     logger.info("Email entered")
     common.clear_and_type(browser, config.LOGIN_PASSWORD_INPUT, password)
-    logger.info("Password entered")   # value never logged
+    logger.info("Password entered")  # value never logged
 
-    browser.click_element(config.LOGIN_SUBMIT_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT)
+    browser.click_element(
+        config.LOGIN_SUBMIT_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    )
     logger.info("Login form submitted")
 
 
@@ -188,17 +191,21 @@ def handle_mfa_if_present(browser, otp: str) -> None:
     """If an MFA challenge is shown, enter the provided OTP, tick trust-device
     (only if not already ticked), and confirm. If no challenge appears, do
     nothing."""
-    if not browser.does_page_contain_element(config.LOGIN_MFA_OTP_INPUT, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
+    if not browser.does_page_contain_element(
+        config.LOGIN_MFA_OTP_INPUT, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    ):
         logger.info("No MFA challenge presented")
         return
 
     logger.info("MFA challenge detected - entering the provided code...")
-    common.clear_and_type(browser, config.LOGIN_MFA_OTP_INPUT, otp)   # code never logged
+    common.clear_and_type(browser, config.LOGIN_MFA_OTP_INPUT, otp)  # code never logged
     logger.info("MFA code entered")
 
     _tick_trust_device(browser)
 
-    browser.click_element(config.LOGIN_MFA_CONFIRM_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT)
+    browser.click_element(
+        config.LOGIN_MFA_CONFIRM_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    )
     logger.info("MFA code submitted")
 
 
@@ -269,9 +276,13 @@ def click_logout(browser) -> None:
     and interactable, so the normal click path is used.
     """
     try:
-        browser.click_element(config.LOGOUT_USER_MENU_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT)
+        browser.click_element(
+            config.LOGOUT_USER_MENU_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+        )
         logger.info("Opened the user-avatar menu")
-        browser.click_element(config.LOGOUT_LINK, timeout=common.DEFAULT_ELEMENT_TIMEOUT)
+        browser.click_element(
+            config.LOGOUT_LINK, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+        )
         logger.info("Clicked 'Log out'")
     except ElementNotFoundError as e:
         raise LogoutError(f"Could not click 'Log out': {e}") from e

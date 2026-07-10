@@ -47,7 +47,9 @@ SH_EXPORT_PDF_ID = "report-toolbar-export-pdf-menuitem"
 SH_REPORT_TITLE_INPUT = "xpath://input[@data-automationid='report-title--input']"
 
 # --- Columns multi-select button (appears on Trial Balance and the aged reports) ---
-SH_COLUMNS_BUTTON = "xpath://button[@data-automationid='report-settings-columns-button']"
+SH_COLUMNS_BUTTON = (
+    "xpath://button[@data-automationid='report-settings-columns-button']"
+)
 
 # --- Pick-list option templates (fill {opt_id}) -----------------------------
 # A pick-list option is an <li id="..."> whose clickable target is the element
@@ -56,9 +58,13 @@ SH_COLUMNS_BUTTON = "xpath://button[@data-automationid='report-settings-columns-
 # State lives on the <li>:
 #   selected -> aria-selected="true"
 #   disabled -> class contains 'xui-pickitem-is-disabled'
-SH_PICKITEM_BODY_TPL = "xpath://li[@id='{opt_id}']//*[contains(@class,'xui-pickitem--body')]"
+SH_PICKITEM_BODY_TPL = (
+    "xpath://li[@id='{opt_id}']//*[contains(@class,'xui-pickitem--body')]"
+)
 SH_PICKITEM_SELECTED_TPL = "xpath://li[@id='{opt_id}' and @aria-selected='true']"
-SH_PICKITEM_DISABLED_TPL = "xpath://li[@id='{opt_id}' and contains(@class,'xui-pickitem-is-disabled')]"
+SH_PICKITEM_DISABLED_TPL = (
+    "xpath://li[@id='{opt_id}' and contains(@class,'xui-pickitem-is-disabled')]"
+)
 
 # --- Accounting basis options (shared picklist option ids) ---
 SH_BASIS_ACCRUAL_ID = "report-settings-accrualbasis-accrual"
@@ -84,10 +90,14 @@ SH_BASIS_CASH_ID = "report-settings-accrualbasis-cash"
 
 # The combobox input. Readonly at rest; clicking it opens the dropdown and
 # exits readonly so it can be typed into to filter.
-BRR_ACCOUNT_INPUT = "xpath://input[@data-automationid='Bank Account-selector-autocompleter--input']"
+BRR_ACCOUNT_INPUT = (
+    "xpath://input[@data-automationid='Bank Account-selector-autocompleter--input']"
+)
 
 # The dropdown list container.
-BRR_ACCOUNT_LIST = "xpath://div[@data-automationid='Bank Account-selector-autocompleter--list']"
+BRR_ACCOUNT_LIST = (
+    "xpath://div[@data-automationid='Bank Account-selector-autocompleter--list']"
+)
 
 # Any account option in the list. Its presence means at least one account
 # exists; its absence is the no-accounts signal.
@@ -112,15 +122,11 @@ BRR_ACCOUNT_ITEM_TPL = (
 # ============================================================================
 
 # "Ageing By" single-select dropdown trigger.
-AGED_AGEING_BY_BUTTON = (
-    "xpath://button[@data-automationid='report-settings-ageingBy-select-list-button--button']"
-)
+AGED_AGEING_BY_BUTTON = "xpath://button[@data-automationid='report-settings-ageingBy-select-list-button--button']"
 
 # An "Ageing By" option's clickable body, keyed on its short option key.
 # {opt} is one of: "due", "invoice" (both aged reports offer only these two).
-AGED_AGEING_OPTION_TPL = (
-    "xpath://*[@data-automationid='report-settings-ageingBy-select-list-option-{opt}--body']"
-)
+AGED_AGEING_OPTION_TPL = "xpath://*[@data-automationid='report-settings-ageingBy-select-list-option-{opt}--body']"
 
 # The "Outstanding GST" column option in the Columns multi-select. Its id is
 # 'taxamountdue' (NOT 'gst'). Driven via the shared pick-item primitives.
@@ -133,24 +139,16 @@ AGED_GST_COLUMN_ID = "column-selection-taxamountdue"
 AGED_AGEING_PERIODS_TRIGGER = (
     "xpath://button[@id='report-settings-ageing-periods-modal-trigger']"
 )
-AGED_AGEING_PERIODS_COUNT_INPUT = (
-    "xpath://input[@data-automationid='report-settings-ageing-periods-modal-periodCount--input']"
-)
-AGED_AGEING_PERIODS_FREQ_INPUT = (
-    "xpath://input[@data-automationid='report-settings-ageing-periods-modal-periodFrequency--input']"
-)
-AGED_AGEING_PERIODS_KIND_BUTTON = (
-    "xpath://button[@data-automationid='report-settings-ageing-periods-modal-periodKind-button']"
-)
+AGED_AGEING_PERIODS_COUNT_INPUT = "xpath://input[@data-automationid='report-settings-ageing-periods-modal-periodCount--input']"
+AGED_AGEING_PERIODS_FREQ_INPUT = "xpath://input[@data-automationid='report-settings-ageing-periods-modal-periodFrequency--input']"
+AGED_AGEING_PERIODS_KIND_BUTTON = "xpath://button[@data-automationid='report-settings-ageing-periods-modal-periodKind-button']"
 # {kind} is the visible label: Month / Week / Day. Options are the shared
 # pick-item bodies inside the modal dialog, matched by text.
 AGED_AGEING_PERIODS_KIND_OPTION_TPL = (
     "xpath://section[@role='dialog']//button[contains(@class,'xui-pickitem--body')]"
     "[.//span[normalize-space()='{kind}']]"
 )
-AGED_AGEING_PERIODS_APPLY_BUTTON = (
-    "xpath://button[@data-automationid='report-settings-ageing-periods-modal-apply-button']"
-)
+AGED_AGEING_PERIODS_APPLY_BUTTON = "xpath://button[@data-automationid='report-settings-ageing-periods-modal-apply-button']"
 
 
 # ============================================================================
@@ -195,8 +193,12 @@ _PLR_SHOW_OPTION_BASE = (
     "'abcdefghijklmnopqrstuvwxyz')='{label_lower}']]"
 )
 PLR_SHOW_OPTION_EXISTS_TPL = "xpath:" + _PLR_SHOW_OPTION_BASE
-PLR_SHOW_OPTION_CHECKED_TPL = "xpath:" + _PLR_SHOW_OPTION_BASE + "[@aria-selected='true']"
-PLR_SHOW_OPTION_CLICK_TPL = "xpath:" + _PLR_SHOW_OPTION_BASE + "//*[contains(@class,'xui-pickitem--body')]"
+PLR_SHOW_OPTION_CHECKED_TPL = (
+    "xpath:" + _PLR_SHOW_OPTION_BASE + "[@aria-selected='true']"
+)
+PLR_SHOW_OPTION_CLICK_TPL = (
+    "xpath:" + _PLR_SHOW_OPTION_BASE + "//*[contains(@class,'xui-pickitem--body')]"
+)
 
 
 # ============================================================================
@@ -210,7 +212,9 @@ PLR_SHOW_OPTION_CLICK_TPL = "xpath:" + _PLR_SHOW_OPTION_BASE + "//*[contains(@cl
 # ============================================================================
 
 # --- Export panel (automation-ids) ---
-ASR_EXPORT_DROPDOWN_BUTTON = "xpath://div[@data-automationid='bas-export-dropdown']//button"
+ASR_EXPORT_DROPDOWN_BUTTON = (
+    "xpath://div[@data-automationid='bas-export-dropdown']//button"
+)
 ASR_FORMAT_PDF_RADIO = "xpath://label[@data-automationid='bas-pdf-radio-button']"
 ASR_FORMAT_EXCEL_RADIO = "xpath://label[@data-automationid='bas-excel-radio-button']"
 ASR_EXPORT_CONFIRM_BUTTON = "xpath://button[@data-automationid='bas-export-button']"
@@ -218,19 +222,109 @@ ASR_EXPORT_CONFIRM_BUTTON = "xpath://button[@data-automationid='bas-export-butto
 # --- Period selector (automation-ids) ---
 # "Create new statement" opens the selector. The period panel's back button
 # returns to the tax-year list. Tax year and period each have stable ids.
-ASR_CREATE_NEW_STATEMENT_BUTTON = "xpath://button[@data-automationid='period-dropdown-button']"
-ASR_YEAR_SELECTOR_BUTTON = "xpath://button[@data-automationid='financial-period-header--button-back']"
+ASR_CREATE_NEW_STATEMENT_BUTTON = (
+    "xpath://button[@data-automationid='period-dropdown-button']"
+)
+ASR_YEAR_SELECTOR_BUTTON = (
+    "xpath://button[@data-automationid='financial-period-header--button-back']"
+)
 # {tax_year} is the FY END year (e.g. 2025 for "2024/25"); {month} is the full
 # month name and {year} the calendar year shown (e.g. financial-period-September-2024).
 ASR_TAX_YEAR_TPL = "xpath://*[@data-automationid='financial-tax-year-{tax_year}--body']"
-ASR_STATEMENT_PERIOD_TPL = "xpath://*[@data-automationid='financial-period-{month}-{year}--body']"
+ASR_STATEMENT_PERIOD_TPL = (
+    "xpath://*[@data-automationid='financial-period-{month}-{year}--body']"
+)
 ASR_TRANSACTIONS_TAB = "xpath://button[.//span[normalize-space()='Transactions']]"  # text - no stable handle seen
 
 # --- ATO lodge wizard (text-located; no stable handles seen) ---
-ASR_LODGE_BUTTON = "xpath://button[normalize-space(text())='Lodge reports to ATO outside of Xero']"
-ASR_GO_TO_STATEMENT_BUTTON = "xpath://button[normalize-space(text())='Go to Activity Statement']"
+ASR_LODGE_BUTTON = (
+    "xpath://button[normalize-space(text())='Lodge reports to ATO outside of Xero']"
+)
+ASR_GO_TO_STATEMENT_BUTTON = (
+    "xpath://button[normalize-space(text())='Go to Activity Statement']"
+)
 ASR_WIZARD_NEXT_BUTTON = "xpath://button[normalize-space(text())='Next']"
 ASR_WIZARD_OK_BUTTON = "xpath://button[normalize-space(text())='OK']"
+
+# ============================================================================
+# BAS settings panel. Opened via the header Settings button (best-effort:
+# skipped if absent). Mirrors the PLR show-option idiom: exists / checked /
+# click. The click target is the label element (base id), which reliably toggles
+# the XUI styled/toggle control.
+#
+# CHECKED-STATE READ  (verified 2026 against a live BAS panel):
+#   Xero sets the checkbox/radio <input>'s `checked` PROPERTY (live DOM state)
+#   but does NOT write a `checked` ATTRIBUTE into the markup. Console check with
+#   two boxes ticked:  input.checked === true  while the serialized HTML showed
+#   no `checked=""`. Therefore an attribute XPath ( [@checked] ) NEVER matches a
+#   ticked control and would misread every box as unticked. The CHECKED template
+#   MUST use a CSS ':checked' selector, which reads the live state correctly.
+#   Do not "simplify" it back to an [@checked] XPath.
+# ============================================================================
+
+# --- Settings panel buttons ---
+ASR_SETTINGS_BUTTON = "xpath://button[@data-automationid='bas-header-settings-button']"
+ASR_SETTINGS_BACK_BUTTON = "xpath://button[@data-automationid='bas-settings-back']"
+ASR_SETTINGS_SAVE_BUTTON = (
+    "xpath://button[@data-automationid='bas-settings-save-and-continue']"
+)
+
+# --- Option base automation-ids (the label carries the base id;
+#     the hidden input carries '<base>--input') ---
+# NOTE: only the "Additional obligations" ids below are DOM-verified. The
+# reporting-method / GST / PAYG toggle ids are the expected pattern but have NOT
+# been confirmed against a capture - verify each against a live panel before
+# relying on the single-choice settings (the CHECKED template above is correct
+# for them regardless, but the base ids themselves are unverified).
+
+# Reporting method (styled radio group)  -- UNVERIFIED ids
+ASR_SETTINGS_REPORTING_SIMPLEBAS_ID = "bas-reporting-method-simplebas"
+ASR_SETTINGS_REPORTING_FULLBAS_ID = "bas-reporting-method-fullbas"
+
+# GST calculation period (toggle group)  -- UNVERIFIED ids
+ASR_SETTINGS_GST_MONTHLY_ID = "bas-settings-gst-monthly"
+ASR_SETTINGS_GST_QUARTERLY_ID = "bas-settings-gst-quarterly"
+ASR_SETTINGS_GST_ANNUALLY_ID = "bas-settings-gst-annually"
+
+# GST accounting method (toggle group)  -- UNVERIFIED ids
+ASR_SETTINGS_ACCOUNTING_CASH_ID = "bas-settings-accounting-cash"
+ASR_SETTINGS_ACCOUNTING_ACCRUAL_ID = "bas-settings-accounting-accrual"
+
+# PAYG withholding period (toggle group)  -- UNVERIFIED ids
+ASR_SETTINGS_PAYGW_NONE_ID = "bas-settings-paygw-none"
+ASR_SETTINGS_PAYGW_MONTHLY_ID = "bas-settings-paygw-monthly"
+ASR_SETTINGS_PAYGW_QUARTERLY_ID = "bas-settings-paygw-quarterly"
+
+# PAYG income tax method (toggle group)  -- UNVERIFIED ids
+ASR_SETTINGS_PAYG_METHOD_NONE_ID = "bas-settings-payg-method-none"
+ASR_SETTINGS_PAYG_METHOD_OPTION1_ID = (
+    "bas-settings-payg-method-option1"  # "Option 1 Amount"
+)
+ASR_SETTINGS_PAYG_METHOD_OPTION2_ID = (
+    "bas-settings-payg-method-option2"  # "Option 2 Income x Rate"
+)
+
+# Additional obligations (checkboxes)  -- DOM-VERIFIED ids (camelCase, from the
+# live panel). deferredGst only renders when GST calculation period = Monthly.
+ASR_SETTINGS_OBLIGATION_FUEL_TAX_CREDITS_ID = "bas-settings-fuelTaxCredits"
+ASR_SETTINGS_OBLIGATION_WINE_EQUALISATION_ID = "bas-settings-wineEqualisationTax"
+ASR_SETTINGS_OBLIGATION_LUXURY_CAR_TAX_ID = "bas-settings-luxuryCarTax"
+ASR_SETTINGS_OBLIGATION_FRINGE_BENEFITS_TAX_ID = "bas-settings-fringeBenefitsTax"
+ASR_SETTINGS_OBLIGATION_DEFERRED_GST_ID = "bas-settings-deferredGst"
+
+# --- Option locator templates ({aid} = a control's base automation-id above).
+#     exists / checked / click.
+#     * exists  : presence of the hidden <input> (state-independent).
+#     * checked : CSS ':checked' on that input - reads the live checked PROPERTY
+#                 (see the CHECKED-STATE READ note above; must NOT be [@checked]).
+#     * click   : the <label> carrying the bare base id - the reliable toggle
+#                 target for XUI styled checkbox/radio controls (the <input> is
+#                 visually hidden and can intercept/ignore a direct click). ---
+ASR_SETTINGS_OPTION_EXISTS_TPL = "xpath://input[@data-automationid='{aid}--input']"
+ASR_SETTINGS_OPTION_CHECKED_TPL = (
+    "css:input[data-automationid='{aid}--input']:checked"
+)
+ASR_SETTINGS_OPTION_CLICK_TPL = "xpath://*[@data-automationid='{aid}']"
 
 
 # ============================================================================
@@ -252,18 +346,28 @@ GSTR_DATE_FROM_INPUT = "id:fromDate"
 GSTR_DATE_TO_INPUT = "id:toDate"
 
 # Update: default (modern button) then legacy (<a onclick='...UpdateReport...'>).
-GSTR_UPDATE_DEFAULT = "xpath://button[@type='button' and normalize-space(text())='Update']"
-GSTR_UPDATE_LEGACY = "xpath://a[normalize-space(text())='Update' and contains(@onclick,'UpdateReport')]"
+GSTR_UPDATE_DEFAULT = (
+    "xpath://button[@type='button' and normalize-space(text())='Update']"
+)
+GSTR_UPDATE_LEGACY = (
+    "xpath://a[normalize-space(text())='Update' and contains(@onclick,'UpdateReport')]"
+)
 
 # Export trigger: default (modern button) then legacy (<span class='words'>Export</span>).
-GSTR_EXPORT_DEFAULT = "xpath://button[@type='button' and normalize-space(text())='Export']"
+GSTR_EXPORT_DEFAULT = (
+    "xpath://button[@type='button' and normalize-space(text())='Export']"
+)
 GSTR_EXPORT_LEGACY = "xpath://span[@class='words' and normalize-space(text())='Export']"
 
 # Format links: default (modern <button><span>) then legacy (<a> keyed on its
 # ShowReportAs onclick action - the most stable handle on this legacy page).
-GSTR_FORMAT_EXCEL_DEFAULT = "xpath://button[@type='button']//span[normalize-space(text())='Excel']"
+GSTR_FORMAT_EXCEL_DEFAULT = (
+    "xpath://button[@type='button']//span[normalize-space(text())='Excel']"
+)
 GSTR_FORMAT_EXCEL_LEGACY = "xpath://a[contains(@onclick,'ExcelReport.aspx')]"
-GSTR_FORMAT_PDF_DEFAULT = "xpath://button[@type='button']//span[normalize-space(text())='PDF']"
+GSTR_FORMAT_PDF_DEFAULT = (
+    "xpath://button[@type='button']//span[normalize-space(text())='PDF']"
+)
 GSTR_FORMAT_PDF_LEGACY = "xpath://a[contains(@onclick,'PDFReport.aspx')]"
 
 
@@ -279,8 +383,12 @@ GSTR_FORMAT_PDF_LEGACY = "xpath://a[contains(@onclick,'PDFReport.aspx')]"
 # ============================================================================
 
 # Open button + search input (automation-ids).
-ACCT_SELECTOR_OPEN_BUTTON = "xpath://button[@data-automationid='Accounts-selector-input-open']"
-ACCT_SELECTOR_INPUT = "xpath://input[@data-automationid='Accounts-selector-autocompleter--input']"
+ACCT_SELECTOR_OPEN_BUTTON = (
+    "xpath://button[@data-automationid='Accounts-selector-input-open']"
+)
+ACCT_SELECTOR_INPUT = (
+    "xpath://input[@data-automationid='Accounts-selector-autocompleter--input']"
+)
 
 # Select all / Deselect all are ONE toggle button sharing a single automationid
 # ('Accounts-selector-dropdown-select-all--body'); only the inner text swaps
@@ -297,7 +405,9 @@ ACCT_DESELECT_ALL = (
 
 # One account row's clickable body, matched EXACTLY on its aria-label.
 # {label} must be an xpath string literal (build it with xpath_literal()).
-ACCT_ITEM_BODY_TPL = "xpath://li[@aria-label={label}]//button[contains(@class,'xui-pickitem--body')]"
+ACCT_ITEM_BODY_TPL = (
+    "xpath://li[@aria-label={label}]//button[contains(@class,'xui-pickitem--body')]"
+)
 
 
 # ============================================================================
@@ -310,11 +420,13 @@ ACCT_ITEM_BODY_TPL = "xpath://li[@aria-label={label}]//button[contains(@class,'x
 # ============================================================================
 
 # --- Navigation (text-located, dual UI; caller drives these) ---
-INV_NAV_SALES_BUTTON = "xpath://button[@type='button' and .//span[normalize-space(text())='Sales']]"          # new UI
-INV_NAV_INVOICES_LINK = "xpath://a[@role='link' and span[normalize-space(text())='Invoices']]"                 # new UI
-INV_NAV_BUSINESS_BUTTON = "xpath://button[normalize-space(text())='Business']"                                 # old UI
-INV_NAV_INVOICES_TAB = "xpath://a[normalize-space(text())='Invoices']"                                         # old UI
-INV_NAV_HOME_LINK = "xpath://span[@class='x-nav--nav-item-text' and normalize-space(text())='Home']"           # new UI (Business is old-UI fallback)
+INV_NAV_SALES_BUTTON = "xpath://button[@type='button' and .//span[normalize-space(text())='Sales']]"  # new UI
+INV_NAV_INVOICES_LINK = (
+    "xpath://a[@role='link' and span[normalize-space(text())='Invoices']]"  # new UI
+)
+INV_NAV_BUSINESS_BUTTON = "xpath://button[normalize-space(text())='Business']"  # old UI
+INV_NAV_INVOICES_TAB = "xpath://a[normalize-space(text())='Invoices']"  # old UI
+INV_NAV_HOME_LINK = "xpath://span[@class='x-nav--nav-item-text' and normalize-space(text())='Home']"  # new UI (Business is old-UI fallback)
 
 # --- Invoice list: status tabs + search ---
 # "All" tab is the only status link whose href has no invoiceStatus query - the
@@ -327,9 +439,7 @@ INV_SEARCH_BUTTON = "xpath://span[@data-automationid='Search-button']"
 # number in that row's ref cell (position-independent - the link text is the
 # CONTACT, not the number, so we key off the ref <td>). {invoice} is an xpath
 # string literal (build with xpath_literal()).
-INV_ROW_LINK_BY_NUMBER_TPL = (
-    "xpath://tr[td[contains(@class,'ref')][normalize-space()={invoice}]]//a[contains(@class,'nav')]"
-)
+INV_ROW_LINK_BY_NUMBER_TPL = "xpath://tr[td[contains(@class,'ref')][normalize-space()={invoice}]]//a[contains(@class,'nav')]"
 # The detail-page heading confirming the right invoice opened. {heading} is an
 # xpath string literal of the full "Invoice {number}" text (build with xpath_literal()).
 INV_DETAIL_HEADING_TPL = "xpath://h1[normalize-space(text())={heading}]"
@@ -337,7 +447,9 @@ INV_DETAIL_HEADING_TPL = "xpath://h1[normalize-space(text())={heading}]"
 # --- Invoice detail page: Print PDF + Mark as Sent modal (automation-ids) ---
 INV_PRINT_PDF_BUTTON = "xpath://button[@data-automationid='PrintDropdown-print']"
 INV_MARK_AS_SENT_MODAL = "xpath://section[@data-automationid='MarkAsSentModal--header' or @id='MarkAsSentModal--header']"
-INV_MARK_AS_SENT_CANCEL = "xpath://button[@data-automationid='MarkAsSentModal--cancelButton']"
+INV_MARK_AS_SENT_CANCEL = (
+    "xpath://button[@data-automationid='MarkAsSentModal--cancelButton']"
+)
 
 
 # ============================================================================
@@ -395,7 +507,9 @@ REPORTS_REPORTING_MENU_BUTTON = "xpath://button[@aria-controls='reporting-sub-na
 # New-UI "All reports" nav link.
 REPORTS_ALL_REPORTS_LINK = "xpath://li/a[span[normalize-space(text())='All reports']]"
 # Legacy fallback: Accounting menu -> Reports (unverified against a capture).
-REPORTS_ACCOUNTING_TAB = "xpath://button[@type='button' and normalize-space(text())='Accounting']"
+REPORTS_ACCOUNTING_TAB = (
+    "xpath://button[@type='button' and normalize-space(text())='Accounting']"
+)
 REPORTS_ACCOUNTING_REPORTS_LINK = "xpath://a[normalize-space(text())='Reports']"
 # A report row inside the centre, keyed on the report-name span. Pass the name
 # through helpers.xpath_literal() into {report_literal} (safe-quotes apostrophes).
@@ -415,7 +529,9 @@ REPORTS_REPORT_LINK_BY_NAME_TPL = (
 # ============================================================================
 # User-avatar button in the top nav. Stable automation-id - no username needed,
 # so no html.unescape and no xpath-injection surface.
-LOGOUT_USER_MENU_BUTTON = "xpath://button[@data-automationid='xnav-addon-user-iconbutton']"
+LOGOUT_USER_MENU_BUTTON = (
+    "xpath://button[@data-automationid='xnav-addon-user-iconbutton']"
+)
 # "Log out" link inside the (initially hidden) user-menu flyout. Keyed on the
 # stable /logout href rather than the locale-dependent 'Log out' link text.
 LOGOUT_LINK = "xpath://a[@href='https://go.xero.com/logout']"
@@ -432,7 +548,9 @@ LOGOUT_LINK = "xpath://a[@href='https://go.xero.com/logout']"
 
 # --- New UI ---
 SWITCH_NEW_SEARCH = "xpath://input[@placeholder='Search organizations']"
-SWITCH_NEW_NO_RESULTS = "xpath://p[starts-with(normalize-space(.), 'No results found for')]"
+SWITCH_NEW_NO_RESULTS = (
+    "xpath://p[starts-with(normalize-space(.), 'No results found for')]"
+)
 # FRAGILE (carried from original): "the first button on the page" is not a robust
 # anchor for the organisation selector. Replace with a real data-automationid /
 # aria-label when the page HTML is available.
@@ -446,13 +564,17 @@ SWITCH_NEW_ACCOUNT_LINK_TPL = (
 )
 
 # --- Legacy UI (verbatim from the original; unverified against a capture) ---
-SWITCH_OLD_CHANGE_ORG = (
-    "xpath://button[@type='button']//span[normalize-space(text())='Change organisation']"
-)
+SWITCH_OLD_CHANGE_ORG = "xpath://button[@type='button']//span[normalize-space(text())='Change organisation']"
 SWITCH_OLD_ACCOUNT_SELECT = "xpath://div[@class='xnav-appbutton--body']"
-SWITCH_OLD_SEARCH_ORG = "xpath://input[@role='searchbox' and @aria-label='Search organisations']"
-SWITCH_OLD_SEARCH_BOX = "xpath://input[normalize-space(@placeholder)='Search organisations']"
-SWITCH_OLD_NO_RESULTS = "xpath://div[starts-with(normalize-space(.), 'No results found for')]"
+SWITCH_OLD_SEARCH_ORG = (
+    "xpath://input[@role='searchbox' and @aria-label='Search organisations']"
+)
+SWITCH_OLD_SEARCH_BOX = (
+    "xpath://input[normalize-space(@placeholder)='Search organisations']"
+)
+SWITCH_OLD_NO_RESULTS = (
+    "xpath://div[starts-with(normalize-space(.), 'No results found for')]"
+)
 SWITCH_OLD_ACTIVE_ORG_TPL = (
     "xpath://div[@class='xnav-appbutton--body']"
     "//span[@class='xnav-appbutton--text' and normalize-space(text())={account_literal}]"

@@ -69,7 +69,6 @@ from typing import Literal, get_args
 from iaa_rpa_utils import ProcessLogger, setup_logger
 from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog
 
-
 # Set up logger
 logger = setup_logger(__name__)
 
@@ -85,9 +84,9 @@ __all__ = [
 # --------------------------------------------------------------------
 # Module constants
 # --------------------------------------------------------------------
-DEFAULT_ELEMENT_TIMEOUT = 5   # seconds; general element waits (overridable per run)
-EXPORT_TIMEOUT = 10           # seconds; Update/Export/Excel - Xero builds the file server-side
-_MIN_FINANCIAL_YEAR = 2000    # earliest financial year we accept
+DEFAULT_ELEMENT_TIMEOUT = 5  # seconds; general element waits (overridable per run)
+EXPORT_TIMEOUT = 10  # seconds; Update/Export/Excel - Xero builds the file server-side
+_MIN_FINANCIAL_YEAR = 2000  # earliest financial year we accept
 
 
 # The aging methods Xero exposes for this report. Constrained so an invalid
@@ -156,7 +155,9 @@ class AgedPayablesRequest:
         # financial_year is typed int but that is not enforced at runtime; guard
         # it so a stringified year gives a clear error. bool is an int subclass,
         # so exclude it.
-        if not isinstance(self.financial_year, int) or isinstance(self.financial_year, bool):
+        if not isinstance(self.financial_year, int) or isinstance(
+            self.financial_year, bool
+        ):
             raise TypeError(
                 f"financial_year must be an int, got {type(self.financial_year).__name__}"
             )
@@ -196,7 +197,8 @@ class AgedPayablesRequest:
         """Human-readable "label : value" rows describing this request, with
         the colons aligned. Used for the run's opening log block."""
         end_date_display = (
-            self.resolved_end_date if self.end_date
+            self.resolved_end_date
+            if self.end_date
             else f"{self.resolved_end_date} (default)"
         )
         rows = {
@@ -215,9 +217,7 @@ class AgedPayablesRequest:
         return [f"{label:<{width}} : {value}" for label, value in rows.items()]
 
 
-def download_aged_payables_detail_report(
-    browser, request: AgedPayablesRequest
-) -> None:
+def download_aged_payables_detail_report(browser, request: AgedPayablesRequest) -> None:
     """
     Download an Aged Payables Detail report from Xero Blue.
 
@@ -302,9 +302,9 @@ def configure_report_dates_and_aging(browser, request: AgedPayablesRequest) -> N
     logger.info(f"Entering report end date: {end_date}")
     browser.click_element(custom_date_locator, timeout=timeout)
     browser.send_keys_to_active_element("\ue009" + "a")  # CTRL + A to select all
-    browser.send_keys_to_active_element("\ue003")        # DELETE to clear existing value
-    browser.send_keys_to_active_element(end_date)        # Type the resolved end date
-    browser.send_keys_to_active_element("\ue004")        # TAB to confirm and move on
+    browser.send_keys_to_active_element("\ue003")  # DELETE to clear existing value
+    browser.send_keys_to_active_element(end_date)  # Type the resolved end date
+    browser.send_keys_to_active_element("\ue004")  # TAB to confirm and move on
     logger.info(f"End date entered successfully: {end_date}")
 
     # Open the aging method dropdown to reveal available options
@@ -322,7 +322,9 @@ def configure_report_dates_and_aging(browser, request: AgedPayablesRequest) -> N
     )
 
     # Confirm the requested aging method is available before clicking it.
-    if aging_option_available(browser, ageing_option_locator, request.aging_by, timeout):
+    if aging_option_available(
+        browser, ageing_option_locator, request.aging_by, timeout
+    ):
         browser.click_element(ageing_option_locator, timeout=timeout)
         logger.info(f"Aging method selected successfully: '{request.aging_by}'")
     else:
@@ -355,7 +357,9 @@ def aging_option_available(
     if present:
         logger.info(f"Aging option '{aging_by}' found in dropdown")
     else:
-        logger.warning(f"Aging option '{aging_by}' not found in dropdown within timeout")
+        logger.warning(
+            f"Aging option '{aging_by}' not found in dropdown within timeout"
+        )
     return present
 
 
@@ -420,9 +424,15 @@ def update_and_export_report(browser, request: AgedPayablesRequest) -> None:
     """
     logger.info("Starting report update and Excel export process...")
 
-    update_locator = "xpath://button[@type='button' and normalize-space(text())='Update']"
-    export_locator = "xpath://button[@type='button' and normalize-space(text())='Export']"
-    excel_locator = "xpath://button[@type='button']//span[normalize-space(text())='Excel']"
+    update_locator = (
+        "xpath://button[@type='button' and normalize-space(text())='Update']"
+    )
+    export_locator = (
+        "xpath://button[@type='button' and normalize-space(text())='Export']"
+    )
+    excel_locator = (
+        "xpath://button[@type='button']//span[normalize-space(text())='Excel']"
+    )
 
     # Click 'Update' to apply all configured report parameters
     logger.info("Clicking 'Update' button to apply report configuration...")
@@ -437,7 +447,9 @@ def update_and_export_report(browser, request: AgedPayablesRequest) -> None:
     # Select 'Excel' to trigger the file download and open the Save As dialog
     logger.info("Selecting 'Excel' format to initiate file download...")
     browser.click_element(excel_locator, timeout=EXPORT_TIMEOUT)
-    logger.info("Excel export triggered. Waiting for Windows Save As dialog to appear...")
+    logger.info(
+        "Excel export triggered. Waiting for Windows Save As dialog to appear..."
+    )
 
     # Allow the download/save dialog to render before handing it off.
     time.sleep(2)

@@ -63,7 +63,6 @@ from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog
 from . import common
 from . import config
 
-
 logger = setup_logger(__name__)
 
 
@@ -95,6 +94,10 @@ class LeaveBalancesRequest:
         financial_year:     FY end year (e.g. 2024); fallback when end_date is omitted.
         export_format:      "excel" (default, .xlsx) or "pdf" (.pdf).
         window_title:       Title used to locate the Chrome Save As window.
+        capture_screenshots: Whether to capture before/after screenshots during
+            export (default True). When True, screenshot_path is required.
+        screenshot_path: Directory screenshots are written to. Required when
+            capture_screenshots is True; may be None when it is False.
 
     Raises (on construction):
         DataValidationError: if any input fails validation.
@@ -110,10 +113,20 @@ class LeaveBalancesRequest:
     screenshot_path: str | None = None
 
     def __post_init__(self) -> None:
-        if not isinstance(self.download_directory, str) or not self.download_directory.strip():
-            raise DataValidationError("download_directory is required and must be a non-empty string")
-        if not isinstance(self.report_file_name, str) or not self.report_file_name.strip():
-            raise DataValidationError("report_file_name is required and must be a non-empty string")
+        if (
+            not isinstance(self.download_directory, str)
+            or not self.download_directory.strip()
+        ):
+            raise DataValidationError(
+                "download_directory is required and must be a non-empty string"
+            )
+        if (
+            not isinstance(self.report_file_name, str)
+            or not self.report_file_name.strip()
+        ):
+            raise DataValidationError(
+                "report_file_name is required and must be a non-empty string"
+            )
 
         if self.export_format not in get_args(ExportFormat):
             raise DataValidationError(
@@ -126,11 +139,15 @@ class LeaveBalancesRequest:
             )
 
         if self.end_date is None and self.financial_year is None:
-            raise DataValidationError("financial_year is required when end_date is omitted")
+            raise DataValidationError(
+                "financial_year is required when end_date is omitted"
+            )
 
         if self.financial_year is not None:
             # bool is an int subclass; exclude it so True/False can't pose as a year.
-            if not isinstance(self.financial_year, int) or isinstance(self.financial_year, bool):
+            if not isinstance(self.financial_year, int) or isinstance(
+                self.financial_year, bool
+            ):
                 raise DataValidationError(
                     f"financial_year must be an int, got {type(self.financial_year).__name__}"
                 )
@@ -164,31 +181,46 @@ class LeaveBalancesRequest:
 
     @property
     def dest_path(self) -> str:
-        return common.build_dest_path(self.download_directory, self.report_file_name, self.saved_extension)
+        return common.build_dest_path(
+            self.download_directory, self.report_file_name, self.saved_extension
+        )
 
     def summary_lines(self) -> list[str]:
         rows = {
-            "End Date": self.resolved_end_date if self.end_date else f"{self.resolved_end_date} (default)",
-            "Financial Year": self.financial_year if self.financial_year is not None else "(from end date)",
+            "End Date": (
+                self.resolved_end_date
+                if self.end_date
+                else f"{self.resolved_end_date} (default)"
+            ),
+            "Financial Year": (
+                self.financial_year
+                if self.financial_year is not None
+                else "(from end date)"
+            ),
             "Export Format": self.export_format,
             "Saved Extension": self.saved_extension,
             "Download Directory": self.download_directory,
             "Report File Name": self.report_file_name,
             "Window Title": self.window_title,
             "Capture Screenshots": self.capture_screenshots,
-            "Screenshot Path": self.screenshot_path if self.capture_screenshots else "(disabled)",
+            "Screenshot Path": (
+                self.screenshot_path if self.capture_screenshots else "(disabled)"
+            ),
         }
         width = max(map(len, rows))
         return [f"{label:<{width}} : {value}" for label, value in rows.items()]
 
 
-def download_leave_balances_report(browser, request: LeaveBalancesRequest) -> None:
+def download_leave_balances_report(browser, request: LeaveBalancesRequest) -> str:
     """
     Download a Leave Balances report from Xero Blue.
 
     Steps, in order (each returns; none calls the next):
         STEP 1 - enter the report end date
         STEP 2 - update, confirm payroll data, export, and verify the saved file
+
+    Returns:
+        str: The full path of the saved report (directory + filename + extension).
 
     Raises:
         Re-raises any exception after ``ProcessLogger`` has logged it.
@@ -203,8 +235,9 @@ def download_leave_balances_report(browser, request: LeaveBalancesRequest) -> No
         logger.info("STEP 1 COMPLETED: end date entered")
 
         logger.info("STEP 2: Updating report and exporting...")
-        update_and_export_report(browser, request)
+        _dest = update_and_export_report(browser, request)
         logger.info("STEP 2 COMPLETED: report exported and file saved")
+        return _dest
 
 
 def configure_report_date(browser, request: LeaveBalancesRequest) -> None:
@@ -215,11 +248,14 @@ def configure_report_date(browser, request: LeaveBalancesRequest) -> None:
     logger.info(f"End date entered successfully: {end_date}")
 
 
-def update_and_export_report(browser, request: LeaveBalancesRequest) -> None:
+def update_and_export_report(browser, request: LeaveBalancesRequest) -> str:
     """Update the report, confirm payroll data exists, export to the chosen
     format, and verify the saved file."""
     common.capture_report_screenshot(
-        browser, request.screenshot_path, "leave_balances", "before_update",
+        browser,
+        request.screenshot_path,
+        "leave_balances",
+        "before_update",
         enabled=request.capture_screenshots,
     )
 
@@ -228,21 +264,32 @@ def update_and_export_report(browser, request: LeaveBalancesRequest) -> None:
 
     # Leave Balances is a payroll report: the Export button only renders when the
     # client has payroll data. Its absence means there is nothing to export.
-    if not browser.does_page_contain_element(config.SH_EXPORT_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
-        logger.warning("Export button not found - no payroll/leave data for this client")
+    if not browser.does_page_contain_element(
+        config.SH_EXPORT_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    ):
+        logger.warning(
+            "Export button not found - no payroll/leave data for this client"
+        )
         raise DataExtractionError("No payroll/leave data available for this client.")
     logger.info("'Export' button present - payroll data confirmed")
 
-    logger.info(f"Exporting as '{request.export_format}' (saved as '{request.saved_extension}')...")
+    logger.info(
+        f"Exporting as '{request.export_format}' (saved as '{request.saved_extension}')..."
+    )
     common.capture_report_screenshot(
-        browser, request.screenshot_path, "leave_balances", "after_update",
+        browser,
+        request.screenshot_path,
+        "leave_balances",
+        "after_update",
         enabled=request.capture_screenshots,
     )
 
     browser.click_element(config.SH_EXPORT_BUTTON, timeout=common.EXPORT_TIMEOUT)
-    common.click_pickitem_by_id(browser, request.export_menu_id, timeout=common.EXPORT_TIMEOUT)
+    common.click_pickitem_by_id(
+        browser, request.export_menu_id, timeout=common.EXPORT_TIMEOUT
+    )
 
-    time.sleep(2)   # brief settle so the save dialog has rendered
+    time.sleep(2)  # brief settle so the save dialog has rendered
 
     dest_path = request.dest_path
     logger.info(f"Handling file save dialog - saving to: '{dest_path}'")
@@ -251,5 +298,6 @@ def update_and_export_report(browser, request: LeaveBalancesRequest) -> None:
         dest_path=dest_path,
     )
 
-    common.verify_saved_file(dest_path)  
+    common.verify_saved_file(dest_path)
     logger.info(f"File successfully saved: '{dest_path}'")
+    return dest_path

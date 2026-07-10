@@ -42,8 +42,8 @@ How to call:
     download_general_ledger_detail_report(browser, request)
 
 Failure behaviour:
-    Errors are logged (by ``ProcessLogger``) and RE-RAISED. No report data, or a
-    file that fails to save, raises ``RuntimeError``.
+    Errors are logged (by ``ProcessLogger``) and RE-RAISED. No report data raises ``DataExtractionError``; a file that fails to save
+    raises ``DownloadError``.
 """
 
 from __future__ import annotations
@@ -60,7 +60,6 @@ from iaa_rpa_utils.exceptions import DataExtractionError, DataValidationError
 
 from . import common
 from . import config
-
 
 logger = setup_logger(__name__)
 
@@ -102,6 +101,10 @@ class GeneralLedgerDetailRequest:
         accounting_method:  "Cash" (default) or "Accrual". Always set.
         export_format:      "excel" (default, .xlsx) or "pdf" (.pdf).
         window_title:       Title used to locate the Chrome Save As window.
+        capture_screenshots: Whether to capture before/after screenshots during
+            export (default True). When True, screenshot_path is required.
+        screenshot_path: Directory screenshots are written to. Required when
+            capture_screenshots is True; may be None when it is False.
     """
 
     download_directory: str
@@ -131,8 +134,12 @@ class GeneralLedgerDetailRequest:
 
         common.validate_optional_date(self.start_date, "start_date")
         common.validate_optional_date(self.end_date, "end_date")
-        if (self.start_date is None or self.end_date is None) and self.financial_year is None:
-            raise DataValidationError("financial_year is required when start_date or end_date is omitted")
+        if (
+            self.start_date is None or self.end_date is None
+        ) and self.financial_year is None:
+            raise DataValidationError(
+                "financial_year is required when start_date or end_date is omitted"
+            )
         if self.financial_year is not None:
             common.validate_financial_year(self.financial_year)
         common.validate_date_order(self.start_date, self.end_date)
@@ -168,13 +175,19 @@ class GeneralLedgerDetailRequest:
 
     @property
     def dest_path(self) -> str:
-        return common.build_dest_path(self.download_directory, self.report_file_name, self.saved_extension)
+        return common.build_dest_path(
+            self.download_directory, self.report_file_name, self.saved_extension
+        )
 
     def summary_lines(self) -> list[str]:
         rows = {
             "Start Date": self.resolved_start_date,
             "End Date": self.resolved_end_date,
-            "Financial Year": self.financial_year if self.financial_year is not None else "(from dates)",
+            "Financial Year": (
+                self.financial_year
+                if self.financial_year is not None
+                else "(from dates)"
+            ),
             "Accounting Method": self.accounting_method,
             "Export Format": self.export_format,
             "Saved Extension": self.saved_extension,
@@ -182,13 +195,17 @@ class GeneralLedgerDetailRequest:
             "Report File Name": self.report_file_name,
             "Window Title": self.window_title,
             "Capture Screenshots": self.capture_screenshots,
-            "Screenshot Path": self.screenshot_path if self.capture_screenshots else "(disabled)",
+            "Screenshot Path": (
+                self.screenshot_path if self.capture_screenshots else "(disabled)"
+            ),
         }
         width = max(map(len, rows))
         return [f"{label:<{width}} : {value}" for label, value in rows.items()]
 
 
-def download_general_ledger_detail_report(browser, request: GeneralLedgerDetailRequest) -> None:
+def download_general_ledger_detail_report(
+    browser, request: GeneralLedgerDetailRequest
+) -> str:
     """
     Download a General Ledger Detail report from Xero Blue.
 
@@ -197,9 +214,12 @@ def download_general_ledger_detail_report(browser, request: GeneralLedgerDetailR
         STEP 2 - select the accounting basis (Cash / Accrual)
         STEP 3 - update, export, and verify the saved file
 
+    Returns:
+        str: The full path of the saved report (directory + filename + extension).
+
     Raises:
-        Re-raises any exception after ``ProcessLogger`` has logged it. No data,
-        or a file that fails to save, raises ``RuntimeError``.
+        Re-raises any exception after ``ProcessLogger`` has logged it. No data raises ``DataExtractionError``; a file that fails to save raises
+        ``DownloadError``.
     """
     with ProcessLogger("Xero Blue Download General Ledger Detail Report", logger):
         for line in request.summary_lines():
@@ -214,14 +234,17 @@ def download_general_ledger_detail_report(browser, request: GeneralLedgerDetailR
         logger.info("STEP 2 COMPLETED: accounting basis selected")
 
         logger.info("STEP 3: Generating report and exporting...")
-        update_and_export_report(browser, request)
+        _dest = update_and_export_report(browser, request)
         logger.info("STEP 3 COMPLETED: report exported and file saved")
+        return _dest
 
 
 def enter_report_dates(browser, request: GeneralLedgerDetailRequest) -> None:
     """Enter the From (start) and To (end) period dates."""
     logger.info("Entering report period dates...")
-    common.clear_and_type(browser, config.SH_DATE_FROM_INPUT, request.resolved_start_date)
+    common.clear_and_type(
+        browser, config.SH_DATE_FROM_INPUT, request.resolved_start_date
+    )
     logger.info(f"Entered From date: {request.resolved_start_date}")
     common.clear_and_type(browser, config.SH_DATE_TO_INPUT, request.resolved_end_date)
     logger.info(f"Entered To date: {request.resolved_end_date}")
@@ -234,11 +257,14 @@ def configure_accounting_basis(browser, request: GeneralLedgerDetailRequest) -> 
     logger.info(f"Accounting basis '{request.accounting_method}' selected")
 
 
-def update_and_export_report(browser, request: GeneralLedgerDetailRequest) -> None:
+def update_and_export_report(browser, request: GeneralLedgerDetailRequest) -> str:
     """Update the report, confirm it has data, export to the chosen format, and
     verify the saved file."""
     common.capture_report_screenshot(
-        browser, request.screenshot_path, "general_ledger_detail", "before_update",
+        browser,
+        request.screenshot_path,
+        "general_ledger_detail",
+        "before_update",
         enabled=request.capture_screenshots,
     )
 
@@ -247,23 +273,36 @@ def update_and_export_report(browser, request: GeneralLedgerDetailRequest) -> No
 
     # NOTE (consistency addition): the original GL module had no no-data guard.
     # Added here to match the other reports - the Export button only renders once
-    # the report has data, so its absence means "no data". 
+    # the report has data, so its absence means "no data".
     # Remove if GL is found to behave differently.
-    if not browser.does_page_contain_element(config.SH_EXPORT_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
-        logger.warning("Export button not found - no General Ledger data available for this client")
-        raise DataExtractionError("No General Ledger Detail data available for this client.")
+    if not browser.does_page_contain_element(
+        config.SH_EXPORT_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    ):
+        logger.warning(
+            "Export button not found - no General Ledger data available for this client"
+        )
+        raise DataExtractionError(
+            "No General Ledger Detail data available for this client."
+        )
     logger.info("'Export' button present - report contains data")
 
-    logger.info(f"Exporting as '{request.export_format}' (saved as '{request.saved_extension}')...")
+    logger.info(
+        f"Exporting as '{request.export_format}' (saved as '{request.saved_extension}')..."
+    )
     common.capture_report_screenshot(
-        browser, request.screenshot_path, "general_ledger_detail", "after_update",
+        browser,
+        request.screenshot_path,
+        "general_ledger_detail",
+        "after_update",
         enabled=request.capture_screenshots,
     )
 
     browser.click_element(config.SH_EXPORT_BUTTON, timeout=common.EXPORT_TIMEOUT)
-    common.click_pickitem_by_id(browser, request.export_menu_id, timeout=common.EXPORT_TIMEOUT)
+    common.click_pickitem_by_id(
+        browser, request.export_menu_id, timeout=common.EXPORT_TIMEOUT
+    )
 
-    time.sleep(3)   # brief settle so the save dialog has rendered
+    time.sleep(3)  # brief settle so the save dialog has rendered
 
     dest_path = request.dest_path
     logger.info(f"Handling file save dialog - saving to: '{dest_path}'")
@@ -274,3 +313,4 @@ def update_and_export_report(browser, request: GeneralLedgerDetailRequest) -> No
 
     common.verify_saved_file(dest_path)
     logger.info(f"File successfully saved: '{dest_path}'")
+    return dest_path

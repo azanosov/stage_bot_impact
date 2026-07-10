@@ -92,31 +92,40 @@ def xero_blue_download_balance_sheet_report(
     start_time = datetime.now()
 
     logger.info("STARTING: xero_blue_download_balance_sheet_report")
-    logger.info(json.dumps({
-        "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
-        "client_name": client_name,
-        "xero_end_date": xero_end_date,
-        "xero_financial_year": xero_financial_year,
-        "window_title": window_title,
-        "download_directory_path": download_directory_path,
-        "xero_report_file_name": xero_report_file_name,
-        "extension": extension,
-        "account_basis": account_basis,
-        "report_setting_chk_options": report_setting_chk_options,
-        "compare_with": compare_with,
-        "number_of_periods": number_of_periods,
-        "custom_report_name": custom_report_name,
-    }, indent=2))
+    logger.info(
+        json.dumps(
+            {
+                "start_time": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+                "client_name": client_name,
+                "xero_end_date": xero_end_date,
+                "xero_financial_year": xero_financial_year,
+                "window_title": window_title,
+                "download_directory_path": download_directory_path,
+                "xero_report_file_name": xero_report_file_name,
+                "extension": extension,
+                "account_basis": account_basis,
+                "report_setting_chk_options": report_setting_chk_options,
+                "compare_with": compare_with,
+                "number_of_periods": number_of_periods,
+                "custom_report_name": custom_report_name,
+            },
+            indent=2,
+        )
+    )
 
     try:
         driver = browser.driver
 
         # STEP 1: Navigate to Custom Report (if specified)
         if custom_report_name:
-            logger.info(f"STEP 1: Clicking custom report link: '{custom_report_name}'...")
+            logger.info(
+                f"STEP 1: Clicking custom report link: '{custom_report_name}'..."
+            )
             click_custom_report_link(driver, custom_report_name)
         else:
-            logger.info("STEP 1: No custom report name provided — skipping custom report navigation")
+            logger.info(
+                "STEP 1: No custom report name provided — skipping custom report navigation"
+            )
 
         # STEP 2: Configure Report Settings (accounting basis and checkbox options)
         logger.info("STEP 2: Configuring report settings...")
@@ -129,10 +138,14 @@ def xero_blue_download_balance_sheet_report(
 
         # STEP 4: Configure Comparison Period (if specified)
         if compare_with:
-            logger.info(f"STEP 4: Configuring comparison period: '{compare_with}' x {number_of_periods}...")
+            logger.info(
+                f"STEP 4: Configuring comparison period: '{compare_with}' x {number_of_periods}..."
+            )
             configure_compare_with(driver, compare_with, number_of_periods)
         else:
-            logger.info("STEP 4: No comparison period specified — skipping compare with configuration")
+            logger.info(
+                "STEP 4: No comparison period specified — skipping compare with configuration"
+            )
 
         # STEP 5: Generate Report and Export
         logger.info("STEP 5: Generating report and exporting...")
@@ -198,7 +211,9 @@ def resolve_report_date(xero_end_date: str | None, xero_financial_year: str) -> 
     """
     if not xero_end_date:
         str_end_date = f"30 Jun {xero_financial_year}"
-        logger.info(f"No custom end date provided. Using financial year default: {str_end_date}")
+        logger.info(
+            f"No custom end date provided. Using financial year default: {str_end_date}"
+        )
     else:
         str_end_date = xero_end_date
         logger.info(f"Using provided end date: {str_end_date}")
@@ -220,10 +235,14 @@ def configure_report_dates(driver: Any, str_end_date: str) -> None:
     Raises:
         TimeoutException: If the date input field cannot be located within 10 seconds.
     """
-    to_elem = helper.type_into_date_element(driver, "report-settings-custom-date-input-to", str_end_date, by=By.ID)
+    to_elem = helper.type_into_date_element(
+        driver, "report-settings-custom-date-input-to", str_end_date, by=By.ID
+    )
 
 
-def configure_report_settings(driver: Any, account_basis: str | None, report_setting_chk_options: list[str] | None) -> None:
+def configure_report_settings(
+    driver: Any, account_basis: str | None, report_setting_chk_options: list[str] | None
+) -> None:
     """
     Configure report settings by opening the 'More' panel, setting the accounting basis,
     and enabling any specified checkbox options.
@@ -249,7 +268,9 @@ def configure_report_settings(driver: Any, account_basis: str | None, report_set
             button cannot be located within 5 seconds.
     """
     if not account_basis and not report_setting_chk_options:
-        logger.info("No account basis or checkbox options specified — skipping report settings configuration")
+        logger.info(
+            "No account basis or checkbox options specified — skipping report settings configuration"
+        )
         return
 
     more_option_xpath = "//button[normalize-space()='More']"
@@ -260,8 +281,10 @@ def configure_report_settings(driver: Any, account_basis: str | None, report_set
         basis_option_xpath = f"//button[contains(@class,'xui-pickitem--body')][.//span[normalize-space()='{account_basis}']]"
         helper.click_element(driver, basis_option_xpath, timeout=5)
 
-    for item in (report_setting_chk_options or []):
-        checkbox_xpath = f"//button[normalize-space()='{item}']//input[@type='checkbox']"
+    for item in report_setting_chk_options or []:
+        checkbox_xpath = (
+            f"//button[normalize-space()='{item}']//input[@type='checkbox']"
+        )
         logger.info(f"Checking option '{item}'...")
         checkbox = WebDriverWait(driver, 5).until(
             EC.presence_of_element_located((By.XPATH, checkbox_xpath)),
@@ -296,7 +319,9 @@ def click_custom_report_link(driver: Any, custom_report_name: str) -> None:
     helper.click_element(driver, xpath)
 
 
-def configure_compare_with(driver: Any, compare_with: str, number_of_periods: int) -> None:
+def configure_compare_with(
+    driver: Any, compare_with: str, number_of_periods: int
+) -> None:
     """
     Select a comparison period from the Compare With dropdown and set the number of periods.
 
@@ -318,8 +343,12 @@ def configure_compare_with(driver: Any, compare_with: str, number_of_periods: in
     dropdown_xpath = "//button[@id='report-settings-comparison-period-button']"
     option_xpath = f"//button[contains(@class,'xui-pickitem--body')][.//span[normalize-space()='{compare_with}']]"
     enter_different_number_xpath = "//button[contains(@class,'xui-pickitem--body')][.//span[normalize-space()='Enter a different number']]"
-    modal_input_xpath = "//section[@role='dialog']//input[contains(@class,'xui-textinput--input')]"
-    select_button_xpath = "//section[@role='dialog']//button[normalize-space()='Select']"
+    modal_input_xpath = (
+        "//section[@role='dialog']//input[contains(@class,'xui-textinput--input')]"
+    )
+    select_button_xpath = (
+        "//section[@role='dialog']//button[normalize-space()='Select']"
+    )
 
     if not helper.element_exists(driver, dropdown_xpath):
         logger.info("Compare With dropdown not found on page — skipping")
@@ -331,4 +360,6 @@ def configure_compare_with(driver: Any, compare_with: str, number_of_periods: in
 
     helper.type_into_element(driver, modal_input_xpath, number_of_periods)
     helper.click_element(driver, select_button_xpath)
-    logger.info(f"Compare With configured: '{compare_with}' x {number_of_periods} period(s)")
+    logger.info(
+        f"Compare With configured: '{compare_with}' x {number_of_periods} period(s)"
+    )

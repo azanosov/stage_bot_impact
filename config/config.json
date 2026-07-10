@@ -1,0 +1,49 @@
+{
+    "Global": [],
+    "Tenant": [],
+    "Automation": [],
+    "Package": [
+
+        // ==========================================================================
+        // FRAMEWORK SETTINGS
+        // ==========================================================================
+        {"Name":"GetDataFunction", "Value":"", "Category":"Framework", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":1, "InputType":"Text", "Label":"Module path for Get Data function (leave empty - consumer only process)"},
+        {"Name":"ProcessDataFunction", "Value":"RPA_process.Client.Impact.process_client", "Category":"Framework", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":2, "InputType":"Dropdown", "Label":"Module function for processing each client entry from the queue", "Eval":"RPA_process.Client.Impact.rpaprocess_ato_consumer.process_ato_communication"},
+        {"Name":"EndofProcessFunction", "Value":"RPA_process.Client.Impact.rpaprocess_ato_consumer.end_process_ato_consumer", "Category":"Framework", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":3, "InputType":"Dropdown", "Label":"Module function for end of process summary email", "Eval":"RPA_process.Client.Impact.rpaprocess_ato_consumer.end_process_ato_consumer"},
+
+        {"Name":"UseRobotDataQueue", "Value":"true", "Category":"Framework", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":4, "InputType":"Dropdown", "Label":"Use IAA Robot Data Queue as transaction source", "Eval":"false,true"},
+        {"Name":"RetryAttempts", "Value":"3", "Category":"Framework", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":5, "InputType":"Text", "Label":"Number of retry attempts for system exceptions", "Type":"int"},
+        {"Name":"BusinessExceptionRetry", "Value":"false", "Category":"Framework", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":6, "InputType":"Dropdown", "Label":"Retry transaction on Business Exception", "Eval":"false,true", "Type":"bool"},
+        {"Name":"LogLevel", "Value":"INFO", "Category":"Framework", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":7, "InputType":"Dropdown", "Label":"Log level", "Eval":"DEBUG,INFO,WARNING,ERROR"},
+
+        {"Name":"InitApplicationsFunction", "Value":"RPA_process.Client.Impact.application_manager.initialize_applications", "Category":"Framework", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":8, "InputType":"Dropdown", "Label":"Module function for initialising applications (browser, email templates)", "Eval":", RPA_process.Client.Impact.application_manager.initialize_applications"},
+        {"Name":"CloseAllProcessFunction", "Value":"RPA_process.Client.Impact.application_manager.close_applications", "Category":"Framework", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":9, "InputType":"Dropdown", "Label":"Module function for gracefully closing applications", "Eval":", RPA_process.Client.Impact.application_manager.close_applications"},
+        {"Name":"KillAllProcessFunction", "Value":"RPA_process.Client.Impact.application_manager.kill_applications", "Category":"Framework", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":10, "InputType":"Dropdown", "Label":"Module function for force-killing applications", "Eval":", RPA_process.Client.Impact.application_manager.kill_applications"},
+
+        {"Name":"UseLocalTransactionsList", "Value":"false", "Category":"Framework", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":11, "InputType":"Dropdown", "Label":"Use local transactions list instead of queue", "Eval":"false,true"},
+        {"Name":"UseCustomDataQueueFunction", "Value":"false", "Category":"Framework", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":12, "InputType":"Dropdown", "Label":"Use custom data queue function", "Eval":"false,true"},
+        {"Name":"TransactionLogFile", "Value":"iarpaprocess/TransactionsProcessed.csv", "Category":"Framework", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":13, "InputType":"Text", "Label":"Transaction log file path"},
+        {"Name":"ProcessLogFolder", "Value":"iarpaprocess/Billing/Processlogs", "Category":"Framework", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":14, "InputType":"Text", "Label":"Process log folder path"},
+        {"Name":"ExceptionScreenshotsFolderPath", "Value":"C:/IAAUTOMATE/Exception Screenshots", "Category":"Framework", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":14, "InputType":"Text", "Label":"Local folder path to save browser screenshots captured on system or business exceptions"},
+        
+        // ==========================================================================
+        // HOUSEKEEPING
+        // ==========================================================================
+        {"Name":"EnableProcessKill", "Value":"true", "Category":"Housekeeping", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":24, "InputType":"Dropdown", "Label":"Force-kill ORPHANED processes by name (e.g chromedriver/chrome, EXCEL.EXE etc)", "Eval":"false,true", "Type":"bool"},
+        {"Name":"WorkingDirectoryXero", "Value":"iarpaprocess/xero", "Category":"Framework", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":14, "InputType":"Text", "Label":"Directory to save downloaded Xero reports and a consolidated spreadsheet"},
+        // ==========================================================================
+        // BROWSER SETTINGS
+        // ==========================================================================
+        {"Name":"UseExistingChromeProfile", "Value":"true", "Category":"Browser", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":24, "InputType":"Dropdown", "Label":"If 'true', use the current user's profile; otherwise use a clean profile", "Eval":"false,true", "Type":"bool"},
+        {"Name":"ChromeProfileDirectory", "Value":"Default", "Category":"Browser", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":25, "InputType":"Text", "Label":"Sets the profile directory. By default sets 'Default'"},
+        {"Name":"BrowserHeadless", "Value":"false", "Category":"Browser", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":24, "InputType":"Dropdown", "Label":"If 'true', do not show the browser on the screen; otherwise - show", "Eval":"false,true", "Type":"bool"},
+        
+        // ==========================================================================
+        // XERO SETTINGS
+        // ==========================================================================
+        {"Name":"XeroLoginUrl", "Value":"https://go.xero.com", "Category":"Xero", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":16, "InputType":"Text", "Label":"Xero login URL"},
+        {"Name":"XeroPayrollUrl", "Value":"https://payroll.xero.com", "Category":"Xero", "EditLevel":"", "EditRole":"Developer", "Parameter":true, "InputOrder":16, "InputType":"Text", "Label":"Xero payroll URL"},
+
+        
+    ]
+}

@@ -65,7 +65,6 @@ from iaa_rpa_utils.helpers import handle_chrome_save_as_dialog
 from . import common
 from . import config
 
-
 logger = setup_logger(__name__)
 
 
@@ -142,7 +141,9 @@ class TrialBalanceRequest:
 
         common.validate_optional_date(self.end_date, "end_date")
         if self.end_date is None and self.financial_year is None:
-            raise DataValidationError("financial_year is required when end_date is omitted")
+            raise DataValidationError(
+                "financial_year is required when end_date is omitted"
+            )
         if self.financial_year is not None:
             common.validate_financial_year(self.financial_year)
 
@@ -177,17 +178,24 @@ class TrialBalanceRequest:
     @property
     def dest_path(self) -> str:
         """Full save path, extension forced to match the export format."""
-        return common.build_dest_path(self.download_directory, self.report_file_name, self.saved_extension)
+        return common.build_dest_path(
+            self.download_directory, self.report_file_name, self.saved_extension
+        )
 
     def summary_lines(self) -> list[str]:
         """Aligned "label : value" rows for the opening log block."""
         end_display = (
-            self.resolved_end_date if self.end_date
+            self.resolved_end_date
+            if self.end_date
             else f"{self.resolved_end_date} (default)"
         )
         rows = {
             "End Date": end_display,
-            "Financial Year": self.financial_year if self.financial_year is not None else "(from end date)",
+            "Financial Year": (
+                self.financial_year
+                if self.financial_year is not None
+                else "(from end date)"
+            ),
             "Accounting Method": self.accounting_method,
             "Export Format": self.export_format,
             "Saved Extension": self.saved_extension,
@@ -195,13 +203,15 @@ class TrialBalanceRequest:
             "Report File Name": self.report_file_name,
             "Window Title": self.window_title,
             "Capture Screenshots": self.capture_screenshots,
-            "Screenshot Path": self.screenshot_path if self.capture_screenshots else "(disabled)",
+            "Screenshot Path": (
+                self.screenshot_path if self.capture_screenshots else "(disabled)"
+            ),
         }
         width = max(map(len, rows))
         return [f"{label:<{width}} : {value}" for label, value in rows.items()]
 
 
-def download_trial_balance_report(browser, request: TrialBalanceRequest) -> None:
+def download_trial_balance_report(browser, request: TrialBalanceRequest) -> str:
     """
     Download a Trial Balance report from Xero Blue.
 
@@ -213,6 +223,9 @@ def download_trial_balance_report(browser, request: TrialBalanceRequest) -> None
     Args:
         browser: SeleniumBrowser wrapper instance (the live engine).
         request (TrialBalanceRequest): All configuration for the download.
+
+    Returns:
+        str: The full path of the saved report (directory + filename + extension).
 
     Raises:
         Re-raises any exception after ``ProcessLogger`` has logged it. Invalid
@@ -232,8 +245,9 @@ def download_trial_balance_report(browser, request: TrialBalanceRequest) -> None
         logger.info("STEP 2 COMPLETED: end date entered")
 
         logger.info("STEP 3: Generating report and exporting...")
-        generate_and_export_report(browser, request)
+        _dest = generate_and_export_report(browser, request)
         logger.info("STEP 3 COMPLETED: report exported and file saved")
+        return _dest
 
 
 def configure_accounting_basis(browser, request: TrialBalanceRequest) -> None:
@@ -251,12 +265,15 @@ def configure_report_date(browser, request: TrialBalanceRequest) -> None:
     logger.info(f"End date entered successfully: {end_date}")
 
 
-def generate_and_export_report(browser, request: TrialBalanceRequest) -> None:
+def generate_and_export_report(browser, request: TrialBalanceRequest) -> str:
     """Screenshot the configured report, update it, confirm it has data,
     screenshot the rendered result, export it, and verify the saved file."""
     # All selections are done: capture the configured report before Update.
     common.capture_report_screenshot(
-        browser, request.screenshot_path, "trial_balance", "before_update",
+        browser,
+        request.screenshot_path,
+        "trial_balance",
+        "before_update",
         enabled=request.capture_screenshots,
     )
 
@@ -264,26 +281,39 @@ def generate_and_export_report(browser, request: TrialBalanceRequest) -> None:
     browser.click_element(config.SH_UPDATE_BUTTON, timeout=common.EXPORT_TIMEOUT)
 
     # Wait for the report title input to confirm the report has rendered.
-    if browser.does_page_contain_element(config.SH_REPORT_TITLE_INPUT, timeout=common.EXPORT_TIMEOUT):
+    if browser.does_page_contain_element(
+        config.SH_REPORT_TITLE_INPUT, timeout=common.EXPORT_TIMEOUT
+    ):
         logger.info("Report rendered successfully - report title is visible")
     else:
-        logger.warning("Report title not visible within timeout - proceeding to data check")
+        logger.warning(
+            "Report title not visible within timeout - proceeding to data check"
+        )
 
     # No Export button means the client has no report data.
-    if not browser.does_page_contain_element(config.SH_EXPORT_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT):
-        logger.warning("Export button not found - no Trial Balance data available for this client")
+    if not browser.does_page_contain_element(
+        config.SH_EXPORT_BUTTON, timeout=common.DEFAULT_ELEMENT_TIMEOUT
+    ):
+        logger.warning(
+            "Export button not found - no Trial Balance data available for this client"
+        )
         raise DataExtractionError("No Trial Balance data available for this client.")
     logger.info("'Export' button located - report contains data")
 
     # Report has rendered with data: capture the result before exporting.
     common.capture_report_screenshot(
-        browser, request.screenshot_path, "trial_balance", "after_update",
+        browser,
+        request.screenshot_path,
+        "trial_balance",
+        "after_update",
         enabled=request.capture_screenshots,
     )
 
     logger.info("Opening export menu and selecting format...")
     browser.click_element(config.SH_EXPORT_BUTTON, timeout=common.EXPORT_TIMEOUT)
-    common.click_pickitem_by_id(browser, request.export_menu_id, timeout=common.EXPORT_TIMEOUT)
+    common.click_pickitem_by_id(
+        browser, request.export_menu_id, timeout=common.EXPORT_TIMEOUT
+    )
     logger.info("Export triggered. Waiting for the Windows Save As dialog...")
 
     dest_path = request.dest_path
@@ -293,5 +323,6 @@ def generate_and_export_report(browser, request: TrialBalanceRequest) -> None:
         dest_path=dest_path,
     )
 
-    common.verify_saved_file(dest_path) 
+    common.verify_saved_file(dest_path)
     logger.info(f"File successfully saved: '{dest_path}'")
+    return dest_path

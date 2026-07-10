@@ -2,6 +2,7 @@ from iaa_rpa_utils import get_logger
 
 logger = get_logger(__name__)
 
+
 def get_bank_reconciliation_accounts(browser) -> list[str]:
     """
     Get all available bank account names from the Bank Reconciliation report dropdown.
@@ -9,12 +10,15 @@ def get_bank_reconciliation_accounts(browser) -> list[str]:
     logger.info("Getting bank account list from Bank Reconciliation dropdown")
 
     try:
-        browser.click_element("xpath://div[contains(@data-automationid,'Bank Account-selector-autocompleter')]//button[@aria-label='Open']")
+        browser.click_element(
+            "xpath://div[contains(@data-automationid,'Bank Account-selector-autocompleter')]//button[@aria-label='Open']"
+        )
     except Exception as e:
         logger.error(f"Failed to open bank account dropdown: {e}")
         raise
 
     import time
+
     accounts = None
     for attempt in range(10):
         accounts = browser.execute_javascript("""

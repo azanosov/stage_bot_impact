@@ -82,7 +82,9 @@ class ConfigTable:
     # Value access
     # ------------------------------------------------------------------
 
-    def get_value(self, key_field: str, key_value: Any, value_field: str, default: Any = None) -> Any:
+    def get_value(
+        self, key_field: str, key_value: Any, value_field: str, default: Any = None
+    ) -> Any:
         """
         Return a single field value from the first matching row.
 

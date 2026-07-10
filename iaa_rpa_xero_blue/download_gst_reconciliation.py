@@ -40,8 +40,8 @@ How to call:
     download_gst_reconciliation_report(browser, request)
 
 Failure behaviour:
-    Errors are logged (by ``ProcessLogger``) and RE-RAISED. No report data, or a
-    file that fails to save, raises ``RuntimeError``.
+    Errors are logged (by ``ProcessLogger``) and RE-RAISED. No report data raises ``DataExtractionError``; a file that fails to save
+    raises ``DownloadError``.
 """
 
 from __future__ import annotations
@@ -59,7 +59,6 @@ from iaa_rpa_utils.exceptions import DataExtractionError, DataValidationError
 from . import common
 from . import config
 
-
 logger = setup_logger(__name__)
 
 
@@ -76,7 +75,11 @@ __all__ = [
 # saved extension). NOTE the Excel link yields .xls, not .xlsx.
 ExportFormat = Literal["excel", "pdf"]
 _EXPORT_FORMATS: dict[str, tuple[str, str, str]] = {
-    "excel": (config.GSTR_FORMAT_EXCEL_DEFAULT, config.GSTR_FORMAT_EXCEL_LEGACY, ".xls"),
+    "excel": (
+        config.GSTR_FORMAT_EXCEL_DEFAULT,
+        config.GSTR_FORMAT_EXCEL_LEGACY,
+        ".xls",
+    ),
     "pdf": (config.GSTR_FORMAT_PDF_DEFAULT, config.GSTR_FORMAT_PDF_LEGACY, ".pdf"),
 }
 
@@ -93,6 +96,10 @@ class GstReconciliationRequest:
         financial_year:     FY end year (e.g. 2024); fallback when a date is omitted.
         export_format:      "excel" (saved as .xls) or "pdf" (saved as .pdf).
         window_title:       Title used to locate the Chrome Save As window.
+        capture_screenshots: Whether to capture before/after screenshots during
+            export (default True). When True, screenshot_path is required.
+        screenshot_path: Directory screenshots are written to. Required when
+            capture_screenshots is True; may be None when it is False.
     """
 
     download_directory: str
@@ -116,8 +123,12 @@ class GstReconciliationRequest:
 
         common.validate_optional_date(self.start_date, "start_date")
         common.validate_optional_date(self.end_date, "end_date")
-        if (self.start_date is None or self.end_date is None) and self.financial_year is None:
-            raise DataValidationError("financial_year is required when start_date or end_date is omitted")
+        if (
+            self.start_date is None or self.end_date is None
+        ) and self.financial_year is None:
+            raise DataValidationError(
+                "financial_year is required when start_date or end_date is omitted"
+            )
         if self.financial_year is not None:
             common.validate_financial_year(self.financial_year)
         common.validate_date_order(self.start_date, self.end_date)
@@ -147,26 +158,36 @@ class GstReconciliationRequest:
 
     @property
     def dest_path(self) -> str:
-        return common.build_dest_path(self.download_directory, self.report_file_name, self.saved_extension)
+        return common.build_dest_path(
+            self.download_directory, self.report_file_name, self.saved_extension
+        )
 
     def summary_lines(self) -> list[str]:
         rows = {
             "Start Date": self.resolved_start_date,
             "End Date": self.resolved_end_date,
-            "Financial Year": self.financial_year if self.financial_year is not None else "(from dates)",
+            "Financial Year": (
+                self.financial_year
+                if self.financial_year is not None
+                else "(from dates)"
+            ),
             "Export Format": self.export_format,
             "Saved Extension": self.saved_extension,
             "Download Directory": self.download_directory,
             "Report File Name": self.report_file_name,
             "Window Title": self.window_title,
             "Capture Screenshots": self.capture_screenshots,
-            "Screenshot Path": self.screenshot_path if self.capture_screenshots else "(disabled)",
+            "Screenshot Path": (
+                self.screenshot_path if self.capture_screenshots else "(disabled)"
+            ),
         }
         width = max(map(len, rows))
         return [f"{label:<{width}} : {value}" for label, value in rows.items()]
 
 
-def download_gst_reconciliation_report(browser, request: GstReconciliationRequest) -> None:
+def download_gst_reconciliation_report(
+    browser, request: GstReconciliationRequest
+) -> str:
     """
     Download a GST Reconciliation report from Xero Blue (legacy surface).
 
@@ -174,9 +195,12 @@ def download_gst_reconciliation_report(browser, request: GstReconciliationReques
         STEP 1 - enter the From/To period dates
         STEP 2 - update the report, export to the chosen format, verify the file
 
+    Returns:
+        str: The full path of the saved report (directory + filename + extension).
+
     Raises:
-        Re-raises any exception after ``ProcessLogger`` has logged it. No data,
-        or a file that fails to save, raises ``RuntimeError``.
+        Re-raises any exception after ``ProcessLogger`` has logged it. No data raises ``DataExtractionError``; a file that fails to save raises
+        ``DownloadError``.
     """
     with ProcessLogger("Xero Blue Download GST Reconciliation Report", logger):
         for line in request.summary_lines():
@@ -187,27 +211,33 @@ def download_gst_reconciliation_report(browser, request: GstReconciliationReques
         logger.info("STEP 1 COMPLETED: from and to dates entered")
 
         logger.info("STEP 2: Updating report and exporting...")
-        update_and_export_report(browser, request)
+        _dest = update_and_export_report(browser, request)
         logger.info("STEP 2 COMPLETED: report exported and file saved")
+        return _dest
 
 
 def enter_report_dates(browser, request: GstReconciliationRequest) -> None:
     """Enter the From (start) and To (end) period dates into the legacy fields."""
     logger.info("Entering report period dates...")
-    common.clear_and_type(browser, config.GSTR_DATE_FROM_INPUT, request.resolved_start_date)
+    common.clear_and_type(
+        browser, config.GSTR_DATE_FROM_INPUT, request.resolved_start_date
+    )
     logger.info(f"Entered From date: {request.resolved_start_date}")
     common.clear_and_type(browser, config.GSTR_DATE_TO_INPUT, request.resolved_end_date)
     logger.info(f"Entered To date: {request.resolved_end_date}")
 
 
-def update_and_export_report(browser, request: GstReconciliationRequest) -> None:
+def update_and_export_report(browser, request: GstReconciliationRequest) -> str:
     """Update the report (probing the default UI variant then legacy), confirm it
     has data, export to the chosen format, save, and verify the file."""
     timeout = common.DEFAULT_ELEMENT_TIMEOUT
 
     # Dates are entered: capture the configured report before Update.
     common.capture_report_screenshot(
-        browser, request.screenshot_path, "gst_reconciliation", "before_update",
+        browser,
+        request.screenshot_path,
+        "gst_reconciliation",
+        "before_update",
         enabled=request.capture_screenshots,
     )
 
@@ -224,19 +254,28 @@ def update_and_export_report(browser, request: GstReconciliationRequest) -> None
     elif browser.does_page_contain_element(config.GSTR_EXPORT_LEGACY, timeout=timeout):
         export_locator = config.GSTR_EXPORT_LEGACY
     else:
-        logger.warning("Export button not found - no report data available for this client")
-        raise DataExtractionError("No GST Reconciliation data available for this client.")
+        logger.warning(
+            "Export button not found - no report data available for this client"
+        )
+        raise DataExtractionError(
+            "No GST Reconciliation data available for this client."
+        )
     logger.info("'Export' control located")
 
     # Report has rendered with data: capture the result before exporting.
     common.capture_report_screenshot(
-        browser, request.screenshot_path, "gst_reconciliation", "after_update",
+        browser,
+        request.screenshot_path,
+        "gst_reconciliation",
+        "after_update",
         enabled=request.capture_screenshots,
     )
 
     # --- Open the Export menu and click the chosen format link ---
     default_format, legacy_format, _ = _EXPORT_FORMATS[request.export_format]
-    logger.info(f"Exporting as '{request.export_format}' (saved as '{request.saved_extension}')...")
+    logger.info(
+        f"Exporting as '{request.export_format}' (saved as '{request.saved_extension}')..."
+    )
     browser.click_element(export_locator, timeout=common.EXPORT_TIMEOUT)
     logger.info("Export menu opened")
 
@@ -248,7 +287,7 @@ def update_and_export_report(browser, request: GstReconciliationRequest) -> None
     logger.info(f"Selected '{request.export_format}' export format")
 
     # --- Save via the Chrome save dialog ---
-    time.sleep(3)   # brief settle so the save dialog has rendered
+    time.sleep(3)  # brief settle so the save dialog has rendered
     dest_path = request.dest_path
     logger.info(f"Handling file save dialog - saving to: '{dest_path}'")
     handle_chrome_save_as_dialog(
@@ -256,5 +295,6 @@ def update_and_export_report(browser, request: GstReconciliationRequest) -> None
         dest_path=dest_path,
     )
 
-    common.verify_saved_file(dest_path)   # principle 10: confirm it actually landed
+    common.verify_saved_file(dest_path)  # principle 10: confirm it actually landed
     logger.info(f"File successfully saved: '{dest_path}'")
+    return dest_path

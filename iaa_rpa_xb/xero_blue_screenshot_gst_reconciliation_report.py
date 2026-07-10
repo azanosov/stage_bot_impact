@@ -10,7 +10,6 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 
-
 # Set up logger
 logger = logging.getLogger("IARPA." + __name__)
 logging.basicConfig(level=logging.INFO)
